@@ -1,0 +1,1427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Campus - Attendance Module</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .fade-in { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+        .spinner {
+            border: 4px solid rgba(0,0,0,0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #3b82f6;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .stat-card { transition: all 0.3s ease; cursor: default; }
+        .stat-card:hover { transform: translateY(-5px); box-shadow: 0 10px 30px rgba(0,0,0,0.15); }
+        .quick-action { transition: all 0.3s ease; cursor: pointer; }
+        .quick-action:hover { transform: scale(1.05); box-shadow: 0 8px 25px rgba(0,0,0,0.15); }
+        .sidebar-link { transition: all 0.2s ease; }
+        .sidebar-link:hover { background: rgba(255,255,255,0.1); transform: translateX(5px); }
+        .progress-bar { transition: width 1s ease-in-out; }
+        .modal-overlay { background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); }
+        .sidebar-transition { transition: all 0.3s ease; }
+        .dark { background-color: #1a1a2e; }
+        .dark .bg-white { background-color: #1e1e3a; }
+        .dark .text-gray-800 { color: #e0e0e0; }
+        .dark .text-gray-600 { color: #b0b0b0; }
+        .dark .text-gray-500 { color: #909090; }
+        .dark .border-gray-200 { border-color: #333355; }
+        .dark .bg-gray-50 { background-color: #252545; }
+        .dark .bg-gray-100 { background-color: #2a2a4a; }
+        .dark .shadow-md { box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .dark .shadow-lg { box-shadow: 0 10px 15px rgba(0,0,0,0.4); }
+        .dark .bg-blue-50 { background-color: #1a2a5a; }
+        .dark .bg-green-50 { background-color: #1a3a2a; }
+        .dark .bg-purple-50 { background-color: #2a1a4a; }
+        .dark .bg-red-50 { background-color: #3a1a1a; }
+        .dark .bg-yellow-50 { background-color: #3a3a1a; }
+        .dark .text-blue-600 { color: #6b9bff; }
+        .dark .text-green-600 { color: #5bcb7b; }
+        .dark .text-purple-600 { color: #ab7beb; }
+        .dark .text-red-600 { color: #eb5b5b; }
+        .dark .bg-blue-100 { background-color: #1a2a5a; }
+        .dark .bg-green-100 { background-color: #1a3a2a; }
+        .dark .bg-purple-100 { background-color: #2a1a4a; }
+        .dark .bg-red-100 { background-color: #3a1a1a; }
+        .dark .bg-yellow-100 { background-color: #3a3a1a; }
+        .dark .border-blue-500 { border-color: #4a7aeb; }
+        .dark .border-green-500 { border-color: #4aeb7a; }
+        .dark .border-purple-500 { border-color: #9a4aeb; }
+        .dark .border-red-500 { border-color: #eb4a4a; }
+        .dark .border-orange-500 { border-color: #eb9a4a; }
+        .dark .border-indigo-500 { border-color: #6b4aeb; }
+    </style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const API_BASE_URL = 'http://localhost:8080/api';
+
+    const api = axios.create({
+        baseURL: API_BASE_URL,
+        headers: { 'Content-Type': 'application/json' }
+    });
+
+    api.interceptors.request.use(config => {
+        const token = localStorage.getItem('token');
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+    });
+
+    api.interceptors.response.use(
+        response => response,
+        error => {
+            if (error.response?.status === 401) {
+                localStorage.clear();
+                window.location.href = '/index.html';
+            }
+            return Promise.reject(error);
+        }
+    );
+
+    // ==================== LOGIN PAGE ====================
+    function LoginPage({ onSwitchToRegister }) {
+        const [loginId, setLoginId] = useState('');
+        const [email, setEmail] = useState('');
+        const [error, setError] = useState('');
+        const [success, setSuccess] = useState('');
+        const [loading, setLoading] = useState(false);
+        const [otpSent, setOtpSent] = useState(false);
+        const [otpTimer, setOtpTimer] = useState(0);
+        const [resendDisabled, setResendDisabled] = useState(false);
+        const [otpInputs, setOtpInputs] = useState(['', '', '', '', '', '']);
+
+        const getRoleInfo = (id) => {
+            if (!id) return { role: '', color: '', bg: '', border: '', gradient: '', icon: '', label: '' };
+            if (id.startsWith('10')) return { role: 'Student', color: 'text-blue-600', bg: 'bg-blue-50', border: 'border-blue-500', gradient: 'from-blue-500 to-blue-600', icon: '🎓', label: 'Student Login' };
+            if (id.startsWith('20')) return { role: 'Faculty', color: 'text-purple-600', bg: 'bg-purple-50', border: 'border-purple-500', gradient: 'from-purple-500 to-purple-600', icon: '👨‍🏫', label: 'Faculty Login' };
+            if (id.startsWith('30')) return { role: 'Admin', color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-500', gradient: 'from-red-500 to-red-600', icon: '👨‍💼', label: 'Admin Login' };
+            return { role: '', color: 'text-gray-600', bg: 'bg-gray-50', border: 'border-gray-300', gradient: 'from-gray-400 to-gray-500', icon: '🆔', label: 'Enter Login ID' };
+        };
+
+        const roleInfo = getRoleInfo(loginId);
+
+        useEffect(() => {
+            let interval;
+            if (otpTimer > 0) {
+                interval = setInterval(() => { setOtpTimer(prev => prev - 1); }, 1000);
+            } else {
+                setResendDisabled(false);
+            }
+            return () => clearInterval(interval);
+        }, [otpTimer]);
+
+        const handleSendOtp = async (e) => {
+            e.preventDefault();
+            setError(''); setSuccess(''); setLoading(true);
+            if (!loginId || loginId.trim() === '') {
+                setError('Please enter your Login ID');
+                setLoading(false);
+                return;
+            }
+            try {
+                const response = await api.post('/auth/send-otp', { loginId });
+                setSuccess('OTP sent successfully to your registered email');
+                setOtpSent(true);
+                setOtpTimer(60);
+                setResendDisabled(true);
+                setError('');
+                setEmail(response.data.email);
+                console.log('📧 OTP for Login ID ' + loginId + ': ' + response.data.otp);
+            } catch (err) {
+                setError(err.response?.data?.message || 'Failed to send OTP');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        const handleVerifyOtp = async (e) => {
+            e.preventDefault();
+            setError(''); setSuccess(''); setLoading(true);
+            const fullOtp = otpInputs.join('');
+            if (fullOtp.length !== 6) {
+                setError('Please enter a valid 6-digit OTP');
+                setLoading(false);
+                return;
+            }
+            try {
+                const response = await api.post('/auth/login', { loginId, otp: fullOtp });
+                localStorage.setItem('token', response.data.token);
+                localStorage.setItem('userId', response.data.userId);
+                localStorage.setItem('loginId', response.data.loginId);
+                localStorage.setItem('name', response.data.name);
+                localStorage.setItem('email', response.data.email);
+                localStorage.setItem('role', response.data.role);
+                window.location.reload();
+            } catch (err) {
+                setError(err.response?.data?.message || 'Invalid or expired OTP');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        const handleOtpInputChange = (index, value) => {
+            if (value.length > 1) return;
+            const newOtpInputs = [...otpInputs];
+            newOtpInputs[index] = value;
+            setOtpInputs(newOtpInputs);
+            if (value && index < 5) {
+                document.getElementById(`otp-input-${index + 1}`)?.focus();
+            }
+        };
+
+        const handleKeyDown = (index, e) => {
+            if (e.key === 'Backspace' && !otpInputs[index] && index > 0) {
+                document.getElementById(`otp-input-${index - 1}`)?.focus();
+            }
+        };
+
+        const handleQuickLogin = (id) => {
+            setLoginId(id);
+            setTimeout(() => {
+                const form = document.querySelector('#loginForm');
+                if (form) form.dispatchEvent(new Event('submit'));
+            }, 300);
+        };
+
+        return (
+            <div className="min-h-screen flex items-center justify-center p-4" style={{
+                background: roleInfo.role === 'Student' ? 'linear-gradient(135deg, #1e3a5f 0%, #4a90d9 100%)' :
+                roleInfo.role === 'Faculty' ? 'linear-gradient(135deg, #2d1b69 0%, #7c3aed 100%)' :
+                roleInfo.role === 'Admin' ? 'linear-gradient(135deg, #7f1d1d 0%, #dc2626 100%)' :
+                'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)'
+            }}>
+                <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md fade-in">
+                    <div className="text-center mb-8">
+                        <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 transition-all duration-500 ${roleInfo.role === 'Student' ? 'bg-blue-100' : roleInfo.role === 'Faculty' ? 'bg-purple-100' : roleInfo.role === 'Admin' ? 'bg-red-100' : 'bg-gray-100'}`}>
+                            <span className="text-4xl">{roleInfo.icon || '🏫'}</span>
+                        </div>
+                        <h1 className="text-3xl font-bold text-gray-800">Smart Campus</h1>
+                        <p className={`text-sm mt-1 font-medium transition-all duration-300 ${roleInfo.role === 'Student' ? 'text-blue-600' : roleInfo.role === 'Faculty' ? 'text-purple-600' : roleInfo.role === 'Admin' ? 'text-red-600' : 'text-gray-500'}`}>
+                            {roleInfo.label || 'Assistant Login Portal'}
+                        </p>
+                        {roleInfo.role && (
+                            <span className={`inline-block mt-1 px-3 py-1 rounded-full text-xs font-bold ${roleInfo.role === 'Student' ? 'bg-blue-100 text-blue-700' : roleInfo.role === 'Faculty' ? 'bg-purple-100 text-purple-700' : 'bg-red-100 text-red-700'}`}>
+                                {roleInfo.icon} {roleInfo.role}
+                            </span>
+                        )}
+                    </div>
+
+                    {error && (
+                        <div className="bg-red-50 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded-lg mb-4 flex items-start gap-3">
+                            <span className="text-xl">⚠️</span>
+                            <div><p className="font-medium">Error</p><p className="text-sm">{error}</p></div>
+                            <button onClick={() => setError('')} className="ml-auto text-red-700 font-bold">×</button>
+                        </div>
+                    )}
+
+                    {success && (
+                        <div className="bg-green-50 border-l-4 border-green-500 text-green-700 px-4 py-3 rounded-lg mb-4 flex items-start gap-3">
+                            <span className="text-xl">✅</span>
+                            <div><p className="font-medium">Success</p><p className="text-sm">{success}</p></div>
+                            <button onClick={() => setSuccess('')} className="ml-auto text-green-700 font-bold">×</button>
+                        </div>
+                    )}
+
+                    {!otpSent ? (
+                        <form id="loginForm" onSubmit={handleSendOtp}>
+                            <div className="mb-4">
+                                <label className="block text-gray-700 text-sm font-bold mb-2">Login ID</label>
+                                <div className="relative">
+                                    <span className={`absolute left-3 top-3 transition-colors duration-300 ${roleInfo.role === 'Student' ? 'text-blue-500' : roleInfo.role === 'Faculty' ? 'text-purple-500' : roleInfo.role === 'Admin' ? 'text-red-500' : 'text-gray-400'}`}>🆔</span>
+                                    <input type="text" value={loginId} onChange={(e) => setLoginId(e.target.value)}
+                                        className={`w-full pl-10 pr-4 py-3 border-2 rounded-lg focus:outline-none focus:ring-2 transition-all duration-300 ${roleInfo.role === 'Student' ? 'border-blue-300 focus:border-blue-500 focus:ring-blue-200' : roleInfo.role === 'Faculty' ? 'border-purple-300 focus:border-purple-500 focus:ring-purple-200' : roleInfo.role === 'Admin' ? 'border-red-300 focus:border-red-500 focus:ring-red-200' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-200'}`}
+                                        placeholder="Enter your Login ID" required />
+                                </div>
+                                {roleInfo.role && (
+                                    <p className={`text-xs mt-1 font-medium ${roleInfo.role === 'Student' ? 'text-blue-600' : roleInfo.role === 'Faculty' ? 'text-purple-600' : 'text-red-600'}`}>
+                                        {roleInfo.icon} {roleInfo.role} Login ID detected
+                                    </p>
+                                )}
+                            </div>
+
+                            <div className="mb-4">
+                                <p className="text-xs text-gray-500 text-center mb-2">Quick Login</p>
+                                <div className="grid grid-cols-3 gap-2">
+                                    <button type="button" onClick={() => handleQuickLogin('1001')} className="bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold py-2 rounded-lg transition text-sm border-2 border-blue-200 hover:border-blue-400">🎓 Student</button>
+                                    <button type="button" onClick={() => handleQuickLogin('200001')} className="bg-purple-100 hover:bg-purple-200 text-purple-800 font-bold py-2 rounded-lg transition text-sm border-2 border-purple-200 hover:border-purple-400">👨‍🏫 Faculty</button>
+                                    <button type="button" onClick={() => handleQuickLogin('300001')} className="bg-red-100 hover:bg-red-200 text-red-800 font-bold py-2 rounded-lg transition text-sm border-2 border-red-200 hover:border-red-400">👨‍💼 Admin</button>
+                                </div>
+                            </div>
+
+                            <button type="submit" disabled={loading} className={`w-full text-white font-bold py-3 rounded-lg hover:shadow-lg transition disabled:opacity-50 transform hover:scale-[1.02] bg-gradient-to-r ${roleInfo.role === 'Student' ? 'from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700' : roleInfo.role === 'Faculty' ? 'from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700' : roleInfo.role === 'Admin' ? 'from-red-500 to-red-600 hover:from-red-600 hover:to-red-700' : 'from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'}`}>
+                                {loading ? (<span className="flex items-center justify-center gap-2"><span className="spinner w-5 h-5"></span>Sending OTP...</span>) : ('📧 Send OTP')}
+                            </button>
+
+                            <div className="mt-4 text-center">
+                                <button type="button" onClick={onSwitchToRegister} className="text-blue-600 hover:text-blue-800 text-sm font-medium">Don't have an account? Register here</button>
+                            </div>
+                        </form>
+                    ) : (
+                        <form onSubmit={handleVerifyOtp}>
+                            <div className="mb-2 text-center">
+                                <p className="text-sm text-gray-600">OTP sent to your registered email</p>
+                                {email && <p className="text-xs text-gray-500">({email})</p>}
+                                <p className={`text-xs mt-1 font-medium ${roleInfo.role === 'Student' ? 'text-blue-600' : roleInfo.role === 'Faculty' ? 'text-purple-600' : 'text-red-600'}`}>
+                                    {roleInfo.icon} Login ID: <strong>{loginId}</strong>
+                                </p>
+                            </div>
+
+                            <div className="mb-4">
+                                <label className="block text-gray-700 text-sm font-bold mb-4 text-center">Enter 6-Digit OTP</label>
+                                <div className="flex justify-center gap-2">
+                                    {otpInputs.map((value, index) => (
+                                        <input key={index} id={`otp-input-${index}`} type="text" maxLength="1" value={value}
+                                            onChange={(e) => handleOtpInputChange(index, e.target.value)}
+                                            onKeyDown={(e) => handleKeyDown(index, e)}
+                                            className={`w-12 h-14 text-center text-2xl font-bold border-2 rounded-lg focus:outline-none focus:ring-2 transition-all duration-300 ${roleInfo.role === 'Student' ? 'border-blue-300 focus:border-blue-500 focus:ring-blue-200' : roleInfo.role === 'Faculty' ? 'border-purple-300 focus:border-purple-500 focus:ring-purple-200' : roleInfo.role === 'Admin' ? 'border-red-300 focus:border-red-500 focus:ring-red-200' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-200'}`}
+                                            autoFocus={index === 0} />
+                                    ))}
+                                </div>
+                            </div>
+
+                            <button type="submit" disabled={loading} className={`w-full text-white font-bold py-3 rounded-lg hover:shadow-lg transition disabled:opacity-50 transform hover:scale-[1.02] bg-gradient-to-r ${roleInfo.role === 'Student' ? 'from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700' : roleInfo.role === 'Faculty' ? 'from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700' : roleInfo.role === 'Admin' ? 'from-red-500 to-red-600 hover:from-red-600 hover:to-red-700' : 'from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700'}`}>
+                                {loading ? (<span className="flex items-center justify-center gap-2"><span className="spinner w-5 h-5"></span>Verifying...</span>) : ('🔐 Verify & Login')}
+                            </button>
+
+                            <div className="mt-4 text-center">
+                                <button type="button" onClick={() => { setOtpSent(false); setOtpInputs(['', '', '', '', '', '']); }} className="text-gray-500 hover:text-gray-700 text-sm">← Back to Login ID</button>
+                                <span className="mx-2 text-gray-300">|</span>
+                                <button type="button" onClick={handleSendOtp} disabled={resendDisabled} className={`text-sm ${resendDisabled ? 'text-gray-400 cursor-not-allowed' : 'text-blue-600 hover:text-blue-800'}`}>
+                                    {resendDisabled ? `Resend in ${otpTimer}s` : 'Resend OTP'}
+                                </button>
+                            </div>
+                        </form>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    // ==================== REGISTER PAGE ====================
+    function RegisterPage({ onSwitchToLogin }) {
+        const [name, setName] = useState('');
+        const [email, setEmail] = useState('');
+        const [role, setRole] = useState('STUDENT');
+        const [phoneNumber, setPhoneNumber] = useState('');
+        const [error, setError] = useState('');
+        const [success, setSuccess] = useState('');
+        const [loading, setLoading] = useState(false);
+
+        const handleRegister = async (e) => {
+            e.preventDefault();
+            setError(''); setSuccess(''); setLoading(true);
+            const defaultPassword = 'user123';
+            try {
+                await api.post('/auth/register', { name, email, password: defaultPassword, role, phoneNumber });
+                setSuccess('Registration successful! Please login with OTP.');
+                setTimeout(() => onSwitchToLogin(), 2000);
+            } catch (err) {
+                setError(err.response?.data?.message || 'Registration failed. Please try again.');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-green-600 to-blue-600 flex items-center justify-center p-4">
+                <div className="bg-white rounded-xl shadow-2xl p-8 w-full max-w-md fade-in">
+                    <div className="text-center mb-8">
+                        <h1 className="text-4xl font-bold text-gray-800">📝 Join Us</h1>
+                        <p className="text-gray-600 mt-2">Create your Smart Campus account</p>
+                    </div>
+                    {error && <div className="bg-red-100 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
+                    {success && <div className="bg-green-100 border-l-4 border-green-500 text-green-700 px-4 py-3 rounded mb-4">{success}</div>}
+                    <form onSubmit={handleRegister}>
+                        <div className="mb-4"><label className="block text-gray-700 text-sm font-bold mb-2">Full Name *</label><input type="text" value={name} onChange={(e) => setName(e.target.value)} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 transition" placeholder="John Doe" required /></div>
+                        <div className="mb-4"><label className="block text-gray-700 text-sm font-bold mb-2">Email *</label><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 transition" placeholder="your@email.com" required /></div>
+                        <div className="mb-4"><label className="block text-gray-700 text-sm font-bold mb-2">Phone Number</label><input type="tel" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 transition" placeholder="10-digit phone number" /></div>
+                        <div className="mb-6"><label className="block text-gray-700 text-sm font-bold mb-2">Role</label><select value={role} onChange={(e) => setRole(e.target.value)} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 transition"><option value="STUDENT">🎓 Student</option><option value="FACULTY">👨‍🏫 Faculty</option><option value="ADMIN">👨‍💼 Admin</option></select></div>
+                        <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200"><p className="text-sm text-gray-600"><span className="font-bold">📌 Note:</span> You will login using OTP sent to your email. No password needed!</p></div>
+                        <button type="submit" disabled={loading} className="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 transition disabled:opacity-50 transform hover:scale-[1.02]">{loading ? 'Registering...' : '🚀 Create Account'}</button>
+                    </form>
+                    <div className="mt-6 text-center"><p className="text-gray-600">Already have an account? <button onClick={onSwitchToLogin} className="text-green-600 font-bold hover:underline">Login here</button></p></div>
+                </div>
+            </div>
+        );
+    }
+
+    // ==================== SUBJECT PIE CHART ====================
+    const SubjectPieChart = ({ present, total }) => {
+        const absent = total - present;
+        const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
+        const circumference = 2 * Math.PI * 35;
+        const presentFraction = total > 0 ? present / total : 0;
+        const absentFraction = total > 0 ? absent / total : 0;
+        const presentOffset = circumference - (presentFraction * circumference);
+        const absentOffset = circumference - (absentFraction * circumference);
+        const getColor = (pct) => { if (pct >= 75) return '#22c55e'; if (pct >= 60) return '#eab308'; return '#ef4444'; };
+        const mainColor = getColor(percentage);
+        if (total === 0) { return <div className="text-center text-gray-400 text-sm">No data</div>; }
+        return (
+            <div className="flex flex-col items-center">
+                <div className="relative w-20 h-20">
+                    <svg className="w-20 h-20 transform -rotate-90" viewBox="0 0 80 80">
+                        <circle cx="40" cy="40" r="32" stroke="#e5e7eb" strokeWidth="8" fill="none"/>
+                        {present > 0 && <circle cx="40" cy="40" r="32" stroke={mainColor} strokeWidth="8" fill="none" strokeDasharray={circumference} strokeDashoffset={presentOffset} strokeLinecap="round" className="transition-all duration-1000"/>}
+                        {absent > 0 && <circle cx="40" cy="40" r="32" stroke="#ef4444" strokeWidth="8" fill="none" strokeDasharray={circumference} strokeDashoffset={absentOffset + presentOffset} strokeLinecap="round" className="transition-all duration-1000"/>}
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                        <span className={`text-xs font-bold ${percentage >= 75 ? 'text-green-600' : percentage >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>{percentage}%</span>
+                    </div>
+                </div>
+                <div className="flex gap-2 mt-1 text-xs">
+                    <span className="flex items-center gap-1"><span className={`w-2 h-2 rounded-full ${percentage >= 75 ? 'bg-green-500' : percentage >= 60 ? 'bg-yellow-500' : 'bg-red-500'}`}></span>{present}</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 bg-red-500 rounded-full"></span>{absent}</span>
+                </div>
+            </div>
+        );
+    };
+
+    // ==================== OVERALL ATTENDANCE CIRCLE ====================
+    const OverallAttendanceCircle = ({ percentage, present, total }) => {
+        const circumference = 2 * Math.PI * 70;
+        const offset = circumference - (percentage / 100) * circumference;
+        const color = percentage >= 75 ? '#22c55e' : percentage >= 60 ? '#eab308' : '#ef4444';
+        return (
+            <div className="flex flex-col items-center">
+                <div className="relative w-44 h-44">
+                    <svg className="w-44 h-44 transform -rotate-90">
+                        <circle cx="88" cy="88" r="78" stroke="#e5e7eb" strokeWidth="12" fill="none"/>
+                        <circle cx="88" cy="88" r="78" stroke={color} strokeWidth="12" fill="none" strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" className="transition-all duration-1000"/>
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className={`text-4xl font-bold ${percentage >= 75 ? 'text-green-600' : percentage >= 60 ? 'text-yellow-600' : 'text-red-600'}`}>{percentage}%</span>
+                        <span className="text-xs text-gray-500">{present} / {total} classes</span>
+                    </div>
+                </div>
+                <div className={`mt-2 px-3 py-1 rounded-full text-sm font-bold ${percentage >= 75 ? 'bg-green-100 text-green-700' : percentage >= 60 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
+                    {percentage >= 75 ? '✅ Good Standing' : percentage >= 60 ? '⚠️ Needs Improvement' : '❌ At Risk'}
+                </div>
+            </div>
+        );
+    };
+
+    // ==================== COURSE MATERIAL DATA ====================
+    const courseMaterials = {
+        'DBMS': { syllabus: ['Introduction to Database Systems', 'Entity-Relationship Model', 'Relational Model & SQL', 'Normalization', 'Transactions & Concurrency Control', 'Recovery Systems'], resources: ['Database System Concepts - Silberschatz', 'Fundamentals of Database Systems - Elmasri', 'SQL Practice Problems'] },
+        'OS': { syllabus: ['Introduction to Operating Systems', 'Process Management', 'Memory Management', 'File Systems', 'I/O Systems', 'Security & Protection'], resources: ['Operating System Concepts - Silberschatz', 'Modern Operating Systems - Tanenbaum', 'Linux Programming Interface'] },
+        'CN': { syllabus: ['Introduction to Computer Networks', 'Data Link Layer', 'Network Layer', 'Transport Layer', 'Application Layer', 'Network Security'], resources: ['Computer Networking - Kurose & Ross', 'Data Communications - Forouzan', 'TCP/IP Illustrated'] },
+        'DSA': { syllabus: ['Arrays & Strings', 'Linked Lists', 'Stacks & Queues', 'Trees & Graphs', 'Sorting & Searching', 'Dynamic Programming'], resources: ['Introduction to Algorithms - CLRS', 'Data Structures - Narasimha Karumanchi', 'LeetCode Practice Problems'] },
+        'AI': { syllabus: ['Introduction to AI', 'Search Algorithms', 'Knowledge Representation', 'Machine Learning Basics', 'Neural Networks', 'Natural Language Processing'], resources: ['Artificial Intelligence - Russell & Norvig', 'Pattern Recognition - Bishop', 'Deep Learning - Goodfellow'] },
+        'ML': { syllabus: ['Introduction to ML', 'Supervised Learning', 'Unsupervised Learning', 'Regression & Classification', 'Clustering', 'Model Evaluation'], resources: ['Hands-On ML - Aurélien Géron', 'Pattern Recognition - Bishop', 'Machine Learning Yearning - Andrew Ng'] }
+    };
+
+    // ==================== STUDENT DASHBOARD ====================
+    function StudentDashboard({ setCurrentPage, isDarkMode = false }) {
+        const [stats, setStats] = useState({ totalClasses: 0, present: 0, percentage: 0, todayClasses: 0, recentActivity: [], subjectWise: [] });
+        const [loading, setLoading] = useState(true);
+        const [error, setError] = useState('');
+        const userId = localStorage.getItem('userId');
+        const userName = localStorage.getItem('name') || 'Student';
+        const [selectedSubject, setSelectedSubject] = useState(null);
+        const [showCourseMaterial, setShowCourseMaterial] = useState(false);
+
+        const getCardBg = () => isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white';
+        const getTextColor = () => isDarkMode ? 'text-white' : 'text-gray-800';
+        const getSubTextColor = () => isDarkMode ? 'text-gray-400' : 'text-gray-500';
+        const getBgColor = () => isDarkMode ? 'bg-gray-900' : 'bg-gray-100';
+
+        useEffect(() => { fetchStudentData(); }, []);
+
+        const fetchStudentData = async () => {
+            setLoading(true); setError('');
+            try {
+                const summaryResponse = await api.get(`/attendance/student/${userId}/summary`);
+                const summary = summaryResponse.data || {};
+                const recordsResponse = await api.get(`/attendance/student/${userId}`);
+                const records = recordsResponse.data || [];
+                const timetableResponse = await api.get('/timetable/today');
+                const todaySlots = timetableResponse.data || [];
+                const subjectMap = {};
+                records.forEach(record => {
+                    if (!subjectMap[record.subject]) { subjectMap[record.subject] = { total: 0, present: 0 }; }
+                    subjectMap[record.subject].total++;
+                    if (record.status === 'PRESENT') { subjectMap[record.subject].present++; }
+                });
+                const subjectWise = Object.keys(subjectMap).map(subject => ({
+                    subject,
+                    total: subjectMap[subject].total,
+                    present: subjectMap[subject].present,
+                    percentage: subjectMap[subject].total > 0 ? Math.round((subjectMap[subject].present / subjectMap[subject].total) * 100) : 0
+                }));
+                setStats({
+                    totalClasses: summary.totalClasses || 0,
+                    present: summary.presentCount || 0,
+                    percentage: summary.percentage || 0,
+                    todayClasses: todaySlots.length,
+                    recentActivity: records.slice(0, 5),
+                    subjectWise: subjectWise
+                });
+            } catch (err) {
+                setError('Failed to load student data');
+                console.error(err);
+            } finally { setLoading(false); }
+        };
+
+        const quickActions = [
+            { id: 'timetable', icon: '📅', label: 'View Timetable', color: 'blue', desc: 'Check your class schedule' },
+            { id: 'attendance', icon: '✓', label: 'Check Attendance', color: 'green', desc: 'View your attendance records' }
+        ];
+
+        const getPercentageColor = (percentage) => {
+            if (percentage >= 75) return 'text-green-600';
+            if (percentage >= 60) return 'text-yellow-600';
+            return 'text-red-600';
+        };
+        const getPercentageBg = (percentage) => {
+            if (percentage >= 75) return 'bg-green-500';
+            if (percentage >= 60) return 'bg-yellow-500';
+            return 'bg-red-500';
+        };
+
+        return (
+            <div className={`p-8 ${getBgColor()}`}>
+                <div className="bg-gradient-to-r from-blue-500 to-purple-600 rounded-2xl p-8 text-white mb-8 shadow-lg">
+                    <h2 className="text-3xl font-bold mb-2">👋 Welcome, {userName}!</h2>
+                    <p className="text-white/90">Stay on top of your classes and attendance. Your academic success starts here.</p>
+                </div>
+                {error && <div className="bg-red-100 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                    <div className={`${getCardBg()} rounded-xl shadow-md p-6 stat-card border-l-4 border-blue-500`}>
+                        <div className="flex items-center justify-between">
+                            <div><p className={`text-sm ${getSubTextColor()}`}>Total Classes</p><p className={`text-3xl font-bold ${getTextColor()}`}>{loading ? '...' : stats.totalClasses}</p></div>
+                            <div className="text-3xl">📚</div>
+                        </div>
+                    </div>
+                    <div className={`${getCardBg()} rounded-xl shadow-md p-6 stat-card border-l-4 border-green-500`}>
+                        <div className="flex items-center justify-between">
+                            <div><p className={`text-sm ${getSubTextColor()}`}>Present</p><p className="text-3xl font-bold text-green-600">{loading ? '...' : stats.present}</p></div>
+                            <div className="text-3xl">✅</div>
+                        </div>
+                    </div>
+                    <div className={`${getCardBg()} rounded-xl shadow-md p-6 stat-card border-l-4 border-purple-500`}>
+                        <div className="flex items-center justify-between">
+                            <div><p className={`text-sm ${getSubTextColor()}`}>Attendance %</p><p className={`text-3xl font-bold ${getPercentageColor(stats.percentage)}`}>{loading ? '...' : stats.percentage}%</p></div>
+                            <div className="text-3xl">📊</div>
+                        </div>
+                        <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+                            <div className={`progress-bar h-2 rounded-full ${getPercentageBg(stats.percentage)}`} style={{ width: `${stats.percentage}%` }}></div>
+                        </div>
+                    </div>
+                    <div className={`${getCardBg()} rounded-xl shadow-md p-6 stat-card border-l-4 border-orange-500`}>
+                        <div className="flex items-center justify-between">
+                            <div><p className={`text-sm ${getSubTextColor()}`}>Today's Classes</p><p className="text-3xl font-bold text-orange-600">{loading ? '...' : stats.todayClasses}</p></div>
+                            <div className="text-3xl">📅</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                    <div className={`${getCardBg()} rounded-xl shadow-md p-6`}>
+                        <h3 className={`text-xl font-bold mb-4 ${getTextColor()}`}>📈 Overall Attendance</h3>
+                        {loading ? <div className="flex justify-center py-8"><div className="spinner"></div></div> :
+                        <div className="flex justify-center"><OverallAttendanceCircle percentage={stats.percentage} present={stats.present} total={stats.totalClasses} /></div>}
+                    </div>
+                    <div className={`${getCardBg()} rounded-xl shadow-md p-6`}>
+                        <h3 className={`text-xl font-bold mb-4 ${getTextColor()}`}>📊 Subject-wise Attendance</h3>
+                        {loading ? <div className="flex justify-center py-8"><div className="spinner"></div></div> :
+                        stats.subjectWise.length === 0 ? <p className={`text-center py-8 ${getSubTextColor()}`}>No attendance data available</p> :
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            {stats.subjectWise.map((item) => (
+                                <div key={item.subject} className={`rounded-lg p-3 text-center hover:shadow-md transition ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                                    <p className={`font-medium text-sm ${getTextColor()}`}>{item.subject}</p>
+                                    <SubjectPieChart present={item.present} total={item.total} />
+                                </div>
+                            ))}
+                        </div>}
+                    </div>
+                </div>
+
+                <h3 className={`text-xl font-bold mb-4 ${getTextColor()}`}>⚡ Quick Actions</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    {quickActions.map(action => (
+                        <div key={action.id} onClick={() => setCurrentPage(action.id)} className={`${getCardBg()} rounded-xl shadow-md p-6 quick-action border-l-4 border-${action.color}-500`}>
+                            <div className="flex items-center gap-4">
+                                <div className={`text-4xl bg-${action.color}-100 p-3 rounded-xl`}>{action.icon}</div>
+                                <div><h4 className={`font-bold text-lg ${getTextColor()}`}>{action.label}</h4><p className={`text-sm ${getSubTextColor()}`}>{action.desc}</p></div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                <div className={`${getCardBg()} rounded-xl shadow-md p-6`}>
+                    <h3 className={`text-xl font-bold mb-4 ${getTextColor()}`}>📋 Recent Activity</h3>
+                    {loading ? <div className="flex justify-center py-4"><div className="spinner"></div></div> :
+                    stats.recentActivity.length === 0 ? <p className={`text-center py-4 ${getSubTextColor()}`}>No recent activity</p> :
+                    <div className="space-y-3">
+                        {stats.recentActivity.map((activity, index) => (
+                            <div key={index} className={`flex items-center gap-3 p-3 rounded-lg ${isDarkMode ? 'bg-gray-700' : 'bg-gray-50'}`}>
+                                <span className="text-2xl">{activity.status === 'PRESENT' ? '✅' : '❌'}</span>
+                                <div><p className={`font-medium ${getTextColor()}`}>{activity.status === 'PRESENT' ? 'Present in' : 'Absent from'} {activity.subject}</p><p className={`text-sm ${getSubTextColor()}`}>{activity.date} • Marked by {activity.markedByName}</p></div>
+                                <span className={`ml-auto text-sm ${activity.status === 'PRESENT' ? 'text-green-600' : 'text-red-600'}`}>{activity.status}</span>
+                            </div>
+                        ))}
+                    </div>}
+                </div>
+
+                <div className={`mt-8 ${getCardBg()} rounded-xl shadow-md p-6`}>
+                    <h3 className={`text-xl font-bold mb-4 ${getTextColor()}`}>📚 Course Material</h3>
+                    {loading ? <div className="flex justify-center py-4"><div className="spinner"></div></div> :
+                    stats.subjectWise.length === 0 ? <p className={`text-center py-4 ${getSubTextColor()}`}>No subjects available</p> :
+                    <div>
+                        <div className="flex gap-2 flex-wrap mb-4">
+                            {stats.subjectWise.map((item) => (
+                                <button key={item.subject} onClick={() => { setSelectedSubject(item.subject); setShowCourseMaterial(true); }} className={`px-4 py-2 rounded-lg text-sm font-medium transition ${selectedSubject === item.subject && showCourseMaterial ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}>{item.subject}</button>
+                            ))}
+                        </div>
+                        {showCourseMaterial && selectedSubject && courseMaterials[selectedSubject] ? (
+                            <div className="mt-4 border-t pt-4">
+                                <h4 className={`font-bold text-lg ${getTextColor()}`}>{selectedSubject}</h4>
+                                <div className="grid md:grid-cols-2 gap-4">
+                                    <div><h5 className={`font-semibold ${getTextColor()} mb-2`}>📋 Syllabus</h5><ul className={`space-y-1 text-sm ${getSubTextColor()}`}>{courseMaterials[selectedSubject].syllabus.map((item, i) => (<li key={i} className="flex items-start gap-2"><span className="text-blue-500">•</span><span>{item}</span></li>))}</ul></div>
+                                    <div><h5 className={`font-semibold ${getTextColor()} mb-2`}>📖 Resources</h5><ul className={`space-y-1 text-sm ${getSubTextColor()}`}>{courseMaterials[selectedSubject].resources.map((item, i) => (<li key={i} className="flex items-start gap-2"><span className="text-green-500">•</span><span>{item}</span></li>))}</ul></div>
+                                </div>
+                                <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                    <p className="text-sm text-blue-700">📌 Attendance: <span className="font-bold">{stats.subjectWise.find(s => s.subject === selectedSubject)?.percentage || 0}%</span> ({stats.subjectWise.find(s => s.subject === selectedSubject)?.present || 0}/{stats.subjectWise.find(s => s.subject === selectedSubject)?.total || 0} classes)</p>
+                                </div>
+                            </div>
+                        ) : showCourseMaterial && selectedSubject ? <p className={`text-center py-4 ${getSubTextColor()}`}>No course material available for {selectedSubject}</p> : null}
+                    </div>}
+                </div>
+            </div>
+        );
+    }
+
+    // ==================== FACULTY DASHBOARD ====================
+    function FacultyDashboard({ setCurrentPage, isDarkMode = false }) {
+        const [stats, setStats] = useState({ totalStudents: 0, totalClasses: 0, todayClasses: 0, pendingAttendance: 0, todaySchedule: [] });
+        const [loading, setLoading] = useState(true);
+        const [error, setError] = useState('');
+        const userId = localStorage.getItem('userId');
+
+        const getCardBg = () => isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white';
+        const getTextColor = () => isDarkMode ? 'text-white' : 'text-gray-800';
+        const getSubTextColor = () => isDarkMode ? 'text-gray-400' : 'text-gray-500';
+        const getBgColor = () => isDarkMode ? 'bg-gray-900' : 'bg-gray-100';
+
+        useEffect(() => { fetchFacultyData(); }, []);
+
+        const fetchFacultyData = async () => {
+            setLoading(true); setError('');
+            try {
+                const timetableResponse = await api.get(`/timetable/faculty/${userId}`);
+                const facultySlots = timetableResponse.data || [];
+                const todayResponse = await api.get(`/timetable/today?facultyId=${userId}`);
+                const todaySlots = todayResponse.data || [];
+                let studentCount = 0;
+                try {
+                    const studentsResponse = await api.get('/users/students');
+                    studentCount = studentsResponse.data?.length || 0;
+                } catch (err) { console.warn('Could not fetch students count:', err.message); }
+                setStats({
+                    totalStudents: studentCount,
+                    totalClasses: facultySlots.length,
+                    todayClasses: todaySlots.length,
+                    pendingAttendance: todaySlots.length > 0 ? todaySlots.length : 0,
+                    todaySchedule: todaySlots.map(slot => ({ id: slot.id, subject: slot.subject, period: slot.period, room: slot.room || 'Not assigned', day: slot.day, facultyName: slot.facultyName }))
+                });
+            } catch (err) {
+                setError('Failed to load faculty data');
+                console.error(err);
+            } finally { setLoading(false); }
+        };
+
+        const quickActions = [
+            { id: 'mark-attendance', icon: '📝', label: 'Mark Attendance', color: 'purple', desc: 'Record student attendance' },
+            { id: 'timetable', icon: '📅', label: 'View Schedule', color: 'blue', desc: 'Check your teaching schedule' },
+            { id: 'attendance', icon: '📊', label: 'View Reports', color: 'green', desc: 'View student attendance reports' }
+        ];
+
+        return (
+            <div className={`p-8 ${getBgColor()}`}>
+                <div className="bg-gradient-to-r from-purple-500 to-pink-600 rounded-2xl p-8 text-white mb-8 shadow-lg">
+                    <h2 className="text-3xl font-bold mb-2">👨‍🏫 Welcome, Faculty!</h2>
+                    <p className="text-white/90">Manage your classes, mark attendance, and track student progress efficiently.</p>
+                </div>
+                {error && <div className="bg-red-100 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                    <div className={`${getCardBg()} rounded-xl shadow-md p-6 stat-card border-l-4 border-purple-500`}>
+                        <div className="flex items-center justify-between">
+                            <div><p className={`text-sm ${getSubTextColor()}`}>Total Students</p><p className={`text-3xl font-bold ${getTextColor()}`}>{loading ? '...' : stats.totalStudents}</p></div>
+                            <div className="text-3xl">👨‍🎓</div>
+                        </div>
+                    </div>
+                    <div className={`${getCardBg()} rounded-xl shadow-md p-6 stat-card border-l-4 border-blue-500`}>
+                        <div className="flex items-center justify-between">
+                            <div><p className={`text-sm ${getSubTextColor()}`}>Total Classes</p><p className="text-3xl font-bold text-blue-600">{loading ? '...' : stats.totalClasses}</p></div>
+                            <div className="text-3xl">📚</div>
+                        </div>
+                    </div>
+                    <div className={`${getCardBg()} rounded-xl shadow-md p-6 stat-card border-l-4 border-green-500`}>
+                        <div className="flex items-center justify-between">
+                            <div><p className={`text-sm ${getSubTextColor()}`}>Today's Classes</p><p className="text-3xl font-bold text-green-600">{loading ? '...' : stats.todayClasses}</p></div>
+                            <div className="text-3xl">📅</div>
+                        </div>
+                    </div>
+                    <div className={`${getCardBg()} rounded-xl shadow-md p-6 stat-card border-l-4 border-red-500`}>
+                        <div className="flex items-center justify-between">
+                            <div><p className={`text-sm ${getSubTextColor()}`}>Pending Attendance</p><p className="text-3xl font-bold text-red-600">{loading ? '...' : stats.pendingAttendance}</p></div>
+                            <div className="text-3xl">⏰</div>
+                        </div>
+                    </div>
+                </div>
+                <h3 className={`text-xl font-bold mb-4 ${getTextColor()}`}>⚡ Quick Actions</h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {quickActions.map(action => (
+                        <div key={action.id} onClick={() => setCurrentPage(action.id)} className={`${getCardBg()} rounded-xl shadow-md p-6 quick-action border-l-4 border-${action.color}-500`}>
+                            <div className="flex items-center gap-4">
+                                <div className={`text-4xl bg-${action.color}-100 p-3 rounded-xl`}>{action.icon}</div>
+                                <div><h4 className={`font-bold text-lg ${getTextColor()}`}>{action.label}</h4><p className={`text-sm ${getSubTextColor()}`}>{action.desc}</p></div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                <div className={`mt-8 ${getCardBg()} rounded-xl shadow-md p-6`}>
+                    <h3 className={`text-xl font-bold mb-4 ${getTextColor()}`}>📅 Today's Schedule</h3>
+                    {loading ? <div className="flex justify-center py-4"><div className="spinner"></div></div> :
+                    stats.todaySchedule.length === 0 ? <p className={`text-center py-4 ${getSubTextColor()}`}>No classes scheduled for today</p> :
+                    <div className="space-y-3">
+                        {stats.todaySchedule.map((cls, index) => (
+                            <div key={index} className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border-l-4 border-blue-500">
+                                <span className="text-2xl">🕐</span>
+                                <div><p className={`font-medium ${getTextColor()}`}>{cls.subject}</p><p className={`text-sm ${getSubTextColor()}`}>{cls.period} • Room {cls.room}</p></div>
+                                <span className="ml-auto text-sm text-blue-600">Today</span>
+                            </div>
+                        ))}
+                    </div>}
+                </div>
+            </div>
+        );
+    }
+
+    // ==================== ADMIN DASHBOARD ====================
+    function AdminDashboard({ setCurrentPage, isDarkMode = false }) {
+        const [stats, setStats] = useState({
+            totalUsers: 0, totalStudents: 0, totalFaculty: 0, totalAdmins: 0, totalClasses: 0,
+            recentRegistrations: [],
+            streamStats: { 'CSE Core': 0, 'CSE AI ML': 0, 'CSE Cybersecurity': 0 },
+            blockStats: { 'Block 1': 0, 'Block 2': 0, 'Block 3': 0 }
+        });
+        const [loading, setLoading] = useState(true);
+        const [error, setError] = useState('');
+
+        const getCardBg = () => isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white';
+        const getTextColor = () => isDarkMode ? 'text-white' : 'text-gray-800';
+        const getSubTextColor = () => isDarkMode ? 'text-gray-400' : 'text-gray-500';
+        const getBgColor = () => isDarkMode ? 'bg-gray-900' : 'bg-gray-100';
+
+        useEffect(() => { fetchAdminData(); }, []);
+
+        const fetchAdminData = async () => {
+            setLoading(true); setError('');
+            try {
+                const countResponse = await api.get('/users/count');
+                const userCounts = countResponse.data || {};
+                const timetableResponse = await api.get('/timetable');
+                const totalClasses = timetableResponse.data?.length || 0;
+                const recentResponse = await api.get('/users/recent');
+                const recentRegistrations = (recentResponse.data || []).map(user => ({
+                    name: user.name, role: user.role,
+                    time: user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Recently',
+                    loginId: user.loginId || 'N/A'
+                }));
+                const studentsResponse = await api.get('/users/students');
+                const students = studentsResponse.data || [];
+                const streamStats = { 'CSE Core': 0, 'CSE AI ML': 0, 'CSE Cybersecurity': 0 };
+                students.forEach(s => { const stream = s.stream || 'CSE Core'; if (streamStats[stream] !== undefined) streamStats[stream]++; });
+                const slots = timetableResponse.data || [];
+                const blockStats = { 'Block 1': 0, 'Block 2': 0, 'Block 3': 0 };
+                slots.forEach(slot => { const block = slot.block || 'Block 1'; if (blockStats[block] !== undefined) blockStats[block]++; });
+                setStats({
+                    totalUsers: userCounts.totalUsers || 0,
+                    totalStudents: userCounts.totalStudents || 0,
+                    totalFaculty: userCounts.totalFaculty || 0,
+                    totalAdmins: userCounts.totalAdmins || 0,
+                    totalClasses: totalClasses,
+                    recentRegistrations: recentRegistrations.slice(0, 5),
+                    streamStats: streamStats,
+                    blockStats: blockStats
+                });
+            } catch (err) {
+                setError('Failed to load admin data');
+                console.error(err);
+            } finally { setLoading(false); }
+        };
+
+        const quickActions = [
+            { id: 'timetable', icon: '📅', label: 'Manage Timetable', color: 'blue', desc: 'Create & edit class schedules' },
+            { id: 'attendance', icon: '📊', label: 'View All Attendance', color: 'green', desc: 'Monitor attendance reports' },
+            { id: 'users', icon: '👥', label: 'Student Management', color: 'purple', desc: 'Add, edit, delete students' },
+            { id: 'faculty-management', icon: '👨‍🏫', label: 'Faculty Management', color: 'orange', desc: 'Add faculty members' }
+        ];
+
+        const streamColors = {
+            'CSE Core': `bg-blue-100 text-blue-700 ${isDarkMode ? 'dark:bg-blue-900 dark:text-blue-300' : ''}`,
+            'CSE AI ML': `bg-purple-100 text-purple-700 ${isDarkMode ? 'dark:bg-purple-900 dark:text-purple-300' : ''}`,
+            'CSE Cybersecurity': `bg-red-100 text-red-700 ${isDarkMode ? 'dark:bg-red-900 dark:text-red-300' : ''}`
+        };
+        const blockColors = {
+            'Block 1': `bg-green-100 text-green-700 ${isDarkMode ? 'dark:bg-green-900 dark:text-green-300' : ''}`,
+            'Block 2': `bg-yellow-100 text-yellow-700 ${isDarkMode ? 'dark:bg-yellow-900 dark:text-yellow-300' : ''}`,
+            'Block 3': `bg-purple-100 text-purple-700 ${isDarkMode ? 'dark:bg-purple-900 dark:text-purple-300' : ''}`
+        };
+
+        return (
+            <div className={`p-8 ${getBgColor()}`}>
+                <div className={`bg-gradient-to-r from-gray-700 to-gray-900 rounded-2xl p-8 text-white mb-8 shadow-lg ${isDarkMode ? 'dark:from-gray-800 dark:to-black' : ''}`}>
+                    <h2 className="text-3xl font-bold mb-2">👨‍💼 Welcome, Admin!</h2>
+                    <p className="text-white/90">Full system control at your fingertips. Monitor and manage everything.</p>
+                </div>
+                {error && <div className="bg-red-100 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
+                <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-8">
+                    {[
+                        { label: 'Total Users', value: stats.totalUsers, color: 'border-blue-500', textColor: `text-gray-800 ${isDarkMode ? 'dark:text-white' : ''}` },
+                        { label: 'Students', value: stats.totalStudents, color: 'border-green-500', textColor: `text-green-600 ${isDarkMode ? 'dark:text-green-400' : ''}` },
+                        { label: 'Faculty', value: stats.totalFaculty, color: 'border-purple-500', textColor: `text-purple-600 ${isDarkMode ? 'dark:text-purple-400' : ''}` },
+                        { label: 'Classes', value: stats.totalClasses, color: 'border-orange-500', textColor: `text-orange-600 ${isDarkMode ? 'dark:text-orange-400' : ''}` },
+                        { label: 'Admins', value: stats.totalAdmins, color: 'border-indigo-500', textColor: `text-indigo-600 ${isDarkMode ? 'dark:text-indigo-400' : ''}` }
+                    ].map((stat, index) => (
+                        <div key={index} className={`${getCardBg()} rounded-xl shadow-md p-4 stat-card border-l-4 ${stat.color}`}>
+                            <p className={`text-xs ${getSubTextColor()}`}>{stat.label}</p>
+                            <p className={`text-2xl font-bold ${stat.textColor}`}>{loading ? '...' : stat.value}</p>
+                        </div>
+                    ))}
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <div className={`${getCardBg()} rounded-xl shadow-md p-6`}>
+                        <h3 className={`text-xl font-bold mb-4 ${getTextColor()}`}>📚 Stream Distribution</h3>
+                        {loading ? <div className="flex justify-center py-4"><div className="spinner"></div></div> :
+                        <div className="space-y-3">
+                            {Object.keys(stats.streamStats).map(stream => (
+                                <div key={stream} className="flex items-center justify-between">
+                                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${streamColors[stream]}`}>{stream}</span>
+                                    <div className="flex items-center gap-4 flex-1 ml-4">
+                                        <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                            <div className={`h-2 rounded-full transition-all duration-1000 ${stream === 'CSE Core' ? 'bg-blue-500' : stream === 'CSE AI ML' ? 'bg-purple-500' : 'bg-red-500'}`} style={{ width: `${stats.totalStudents > 0 ? (stats.streamStats[stream] / stats.totalStudents) * 100 : 0}%` }}></div>
+                                        </div>
+                                        <span className={`text-sm font-bold ${getTextColor()}`}>{stats.streamStats[stream]}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>}
+                    </div>
+                    <div className={`${getCardBg()} rounded-xl shadow-md p-6`}>
+                        <h3 className={`text-xl font-bold mb-4 ${getTextColor()}`}>🏫 Block Distribution</h3>
+                        {loading ? <div className="flex justify-center py-4"><div className="spinner"></div></div> :
+                        <div className="space-y-3">
+                            {Object.keys(stats.blockStats).map(block => (
+                                <div key={block} className="flex items-center justify-between">
+                                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${blockColors[block]}`}>{block}</span>
+                                    <div className="flex items-center gap-4 flex-1 ml-4">
+                                        <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                            <div className={`h-2 rounded-full transition-all duration-1000 ${block === 'Block 1' ? 'bg-green-500' : block === 'Block 2' ? 'bg-yellow-500' : 'bg-purple-500'}`} style={{ width: `${stats.totalClasses > 0 ? (stats.blockStats[block] / stats.totalClasses) * 100 : 0}%` }}></div>
+                                        </div>
+                                        <span className={`text-sm font-bold ${getTextColor()}`}>{stats.blockStats[block]}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>}
+                    </div>
+                </div>
+                <h3 className={`text-xl font-bold mb-4 ${getTextColor()}`}>⚡ Quick Actions</h3>
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                    {quickActions.map(action => (
+                        <div key={action.id} onClick={() => setCurrentPage(action.id)} className={`${getCardBg()} rounded-xl shadow-md p-4 quick-action border-l-4 border-${action.color}-500 cursor-pointer hover:shadow-lg transition`}>
+                            <div className="flex items-center gap-3">
+                                <div className={`text-3xl bg-${action.color}-100 ${isDarkMode ? `dark:bg-${action.color}-900` : ''} p-2 rounded-xl`}>{action.icon}</div>
+                                <div><h4 className={`font-bold text-sm ${getTextColor()}`}>{action.label}</h4><p className={`text-xs ${getSubTextColor()}`}>{action.desc}</p></div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+                <div className={`${getCardBg()} rounded-xl shadow-md p-6`}>
+                    <h3 className={`text-xl font-bold mb-4 ${getTextColor()}`}>📊 Recent Registrations</h3>
+                    {loading ? <div className="flex justify-center py-4"><div className="spinner"></div></div> :
+                    stats.recentRegistrations.length === 0 ? <p className={`text-center py-4 ${getSubTextColor()}`}>No recent registrations</p> :
+                    <div className="space-y-3">
+                        {stats.recentRegistrations.map((user, index) => (
+                            <div key={index} className={`flex items-center justify-between p-3 rounded-lg hover:shadow transition ${isDarkMode ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-50 hover:bg-gray-100'}`}>
+                                <div className="flex items-center gap-3">
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${isDarkMode ? 'bg-blue-800 text-blue-300' : 'bg-blue-100 text-blue-600'}`}>{user.name.charAt(0).toUpperCase()}</div>
+                                    <div><p className={`font-medium ${getTextColor()}`}>{user.name}</p>
+                                        <div className="flex items-center gap-2">
+                                            <span className={`text-xs px-2 py-0.5 rounded-full ${isDarkMode ? 'bg-gray-600 text-gray-300' : 'bg-gray-200 text-gray-600'}`}>{user.role}</span>
+                                            <span className={`text-xs ${getSubTextColor()}`}>Login ID: {user.loginId}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <span className="text-sm text-green-600 dark:text-green-400">{user.time}</span>
+                            </div>
+                        ))}
+                    </div>}
+                </div>
+            </div>
+        );
+    }
+
+    // ==================== ATTENDANCE PAGE ====================
+    function AttendancePage({ isDarkMode = false }) {
+        const [attendance, setAttendance] = useState([]);
+        const [loading, setLoading] = useState(true);
+        const [error, setError] = useState('');
+        const role = localStorage.getItem('role');
+        const userId = localStorage.getItem('userId');
+
+        const getCardBg = () => isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white';
+        const getTextColor = () => isDarkMode ? 'text-white' : 'text-gray-800';
+        const getSubTextColor = () => isDarkMode ? 'text-gray-400' : 'text-gray-500';
+
+        useEffect(() => { fetchAttendance(); }, []);
+
+        const fetchAttendance = async () => {
+            setLoading(true); setError('');
+            try {
+                const endpoint = role === 'ADMIN' ? '/attendance/all' : `/attendance/student/${userId}`;
+                const response = await api.get(endpoint);
+                setAttendance(response.data);
+            } catch (err) { setError('Failed to load attendance records'); }
+            setLoading(false);
+        };
+
+        return (
+            <div className={`p-6 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
+                <h1 className={`text-3xl font-bold ${getTextColor()} mb-6`}>✓ Attendance</h1>
+                {error && <div className="bg-red-100 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
+                <div className={`${getCardBg()} rounded-xl shadow-lg overflow-hidden`}>
+                    <div className={`p-6 border-b ${isDarkMode ? 'border-gray-700' : ''}`}>
+                        <h2 className={`text-xl font-bold ${getTextColor()}`}>{role === 'ADMIN' ? '📊 All Attendance Records' : '📋 My Attendance Records'}</h2>
+                    </div>
+                    {loading ? <div className="flex justify-center items-center py-12"><div className="spinner"></div></div> :
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead className={`${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                                <tr>
+                                    <th className={`px-6 py-3 text-left text-sm font-semibold ${getTextColor()}`}>Date</th>
+                                    <th className={`px-6 py-3 text-left text-sm font-semibold ${getTextColor()}`}>Subject</th>
+                                    <th className={`px-6 py-3 text-left text-sm font-semibold ${getTextColor()}`}>Status</th>
+                                    {role === 'ADMIN' && <th className={`px-6 py-3 text-left text-sm font-semibold ${getTextColor()}`}>Student</th>}
+                                    <th className={`px-6 py-3 text-left text-sm font-semibold ${getTextColor()}`}>Marked By</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {attendance.length === 0 ? <tr><td colSpan={role === 'ADMIN' ? 5 : 4} className={`px-6 py-8 text-center ${getSubTextColor()}`}>No attendance records found</td></tr> :
+                                attendance.map((record, idx) => (
+                                    <tr key={idx} className={`border-t ${isDarkMode ? 'border-gray-700' : ''} hover:bg-gray-50 transition`}>
+                                        <td className={`px-6 py-3 ${getTextColor()}`}>{record.date}</td>
+                                        <td className={`px-6 py-3 font-medium ${getTextColor()}`}>{record.subject}</td>
+                                        <td className="px-6 py-3"><span className={`px-3 py-1 rounded-full text-white font-bold text-sm ${record.status === 'PRESENT' ? 'bg-green-600' : 'bg-red-600'}`}>{record.status}</span></td>
+                                        {role === 'ADMIN' && <td className={`px-6 py-3 ${getTextColor()}`}>{record.studentName || 'N/A'}</td>}
+                                        <td className={`px-6 py-3 ${getSubTextColor()}`}>{record.markedByName}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>}
+                </div>
+            </div>
+        );
+    }
+
+    // ==================== MARK ATTENDANCE PAGE ====================
+    function MarkAttendancePage({ isDarkMode = false }) {
+        const subjects = ['DBMS', 'OS', 'CN', 'DSA', 'AI', 'ML'];
+        const [selectedSubject, setSelectedSubject] = useState('DBMS');
+        const [students, setStudents] = useState([]);
+        const [loading, setLoading] = useState(false);
+        const [error, setError] = useState('');
+        const [success, setSuccess] = useState('');
+        const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+
+        const getCardBg = () => isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white';
+        const getTextColor = () => isDarkMode ? 'text-white' : 'text-gray-800';
+        const getSubTextColor = () => isDarkMode ? 'text-gray-400' : 'text-gray-500';
+
+        useEffect(() => {
+            const fetchStudents = async () => {
+                try {
+                    const response = await api.get('/users/students');
+                    const studentList = response.data || [];
+                    setStudents(studentList.map(s => ({ id: s.id, name: s.name, status: 'PRESENT' })));
+                } catch (err) {
+                    setStudents([{ id: 1, name: 'Alice Johnson' }, { id: 2, name: 'Bob Smith' }, { id: 3, name: 'Carol White' }].map(s => ({ ...s, status: 'PRESENT' })));
+                }
+            };
+            fetchStudents();
+        }, [selectedSubject]);
+
+        const handleMarkAll = (status) => setStudents(students.map(s => ({ ...s, status })));
+
+        const handleSubmit = async (e) => {
+            e.preventDefault();
+            setLoading(true); setError(''); setSuccess('');
+            try {
+                await api.post('/attendance/mark', { subject: selectedSubject, date, students: students.map(s => ({ studentId: s.id, status: s.status })) });
+                setSuccess(`Attendance marked successfully for ${students.length} students!`);
+                setStudents(students.map(s => ({ ...s, status: 'PRESENT' })));
+            } catch (err) {
+                setError(err.response?.data?.message || 'Failed to mark attendance');
+            } finally { setLoading(false); }
+        };
+
+        return (
+            <div className={`p-6 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
+                <h1 className={`text-3xl font-bold ${getTextColor()} mb-6`}>📝 Mark Attendance</h1>
+                {error && <div className="bg-red-100 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded mb-4">{error}</div>}
+                {success && <div className="bg-green-100 border-l-4 border-green-500 text-green-700 px-4 py-3 rounded mb-4">{success}</div>}
+                <div className={`${getCardBg()} rounded-xl shadow-lg p-6`}>
+                    <form onSubmit={handleSubmit}>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                            <div><label className={`block ${getTextColor()} font-bold mb-2`}>Subject</label><select value={selectedSubject} onChange={(e) => setSelectedSubject(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">{subjects.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
+                            <div><label className={`block ${getTextColor()} font-bold mb-2`}>Date</label><input type="date" value={date} onChange={(e) => setDate(e.target.value)} className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" /></div>
+                        </div>
+                        <div className="flex gap-2 mb-4"><button type="button" onClick={() => handleMarkAll('PRESENT')} className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">Mark All Present</button><button type="button" onClick={() => handleMarkAll('ABSENT')} className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition">Mark All Absent</button></div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full">
+                                <thead className={`${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                                    <tr><th className={`px-4 py-2 text-left ${getTextColor()}`}>Student ID</th><th className={`px-4 py-2 text-left ${getTextColor()}`}>Name</th><th className={`px-4 py-2 text-left ${getTextColor()}`}>Status</th></tr>
+                                </thead>
+                                <tbody>
+                                    {students.map((student, idx) => (
+                                        <tr key={student.id} className={`border-t ${isDarkMode ? 'border-gray-700' : ''}`}>
+                                            <td className={`px-4 py-2 ${getTextColor()}`}>{student.id}</td>
+                                            <td className={`px-4 py-2 ${getTextColor()}`}>{student.name}</td>
+                                            <td className="px-4 py-2">
+                                                <select value={student.status} onChange={(e) => { const updated = [...students]; updated[idx].status = e.target.value; setStudents(updated); }} className="border border-gray-300 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                                    <option value="PRESENT">✅ Present</option>
+                                                    <option value="ABSENT">❌ Absent</option>
+                                                </select>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                        <button type="submit" disabled={loading} className="w-full mt-6 bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition disabled:opacity-50">{loading ? 'Saving...' : '✅ Submit Attendance'}</button>
+                    </form>
+                </div>
+            </div>
+        );
+    }
+
+    // ==================== STUDENT MANAGEMENT PAGE ====================
+    function StudentManagementPage({ isDarkMode = false }) {
+        const [students, setStudents] = useState([]);
+        const [loading, setLoading] = useState(true);
+        const [error, setError] = useState('');
+        const [success, setSuccess] = useState('');
+        const [showAddModal, setShowAddModal] = useState(false);
+        const [showEditModal, setShowEditModal] = useState(false);
+        const [editingStudent, setEditingStudent] = useState(null);
+        const [searchTerm, setSearchTerm] = useState('');
+        const [formData, setFormData] = useState({ name: '', email: '', phoneNumber: '', stream: 'CSE Core' });
+        const streams = ['CSE Core', 'CSE AI ML', 'CSE Cybersecurity'];
+
+        const getCardBg = () => isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white';
+        const getTextColor = () => isDarkMode ? 'text-white' : 'text-gray-800';
+        const getSubTextColor = () => isDarkMode ? 'text-gray-400' : 'text-gray-500';
+
+        useEffect(() => { fetchStudents(); }, []);
+
+        const fetchStudents = async () => {
+            setLoading(true); setError('');
+            try {
+                const response = await api.get('/users/students');
+                setStudents(response.data || []);
+            } catch (err) { setError('Failed to load students'); }
+            setLoading(false);
+        };
+
+        const handleAddStudent = async (e) => {
+            e.preventDefault();
+            setLoading(true); setError(''); setSuccess('');
+            try {
+                await api.post('/users/students', { name: formData.name, email: formData.email, phoneNumber: formData.phoneNumber, stream: formData.stream });
+                setSuccess('Student added successfully!');
+                setShowAddModal(false);
+                setFormData({ name: '', email: '', phoneNumber: '', stream: 'CSE Core' });
+                fetchStudents();
+            } catch (err) { setError(err.response?.data?.error || 'Failed to add student'); }
+            finally { setLoading(false); }
+        };
+
+        const handleUpdateStudent = async (e) => {
+            e.preventDefault();
+            setLoading(true); setError(''); setSuccess('');
+            try {
+                await api.put(`/users/${editingStudent.id}`, { name: formData.name, email: formData.email, phoneNumber: formData.phoneNumber, stream: formData.stream });
+                setSuccess('Student updated successfully!');
+                setShowEditModal(false);
+                setEditingStudent(null);
+                setFormData({ name: '', email: '', phoneNumber: '', stream: 'CSE Core' });
+                fetchStudents();
+            } catch (err) { setError(err.response?.data?.error || 'Failed to update student'); }
+            finally { setLoading(false); }
+        };
+
+        const handleDeleteStudent = async (id) => {
+            if (!confirm('Are you sure you want to delete this student?')) return;
+            setLoading(true);
+            try {
+                await api.delete(`/users/${id}`);
+                setSuccess('Student deleted successfully!');
+                fetchStudents();
+            } catch (err) { setError('Failed to delete student'); }
+            finally { setLoading(false); }
+        };
+
+        const openEditModal = (student) => {
+            setEditingStudent(student);
+            setFormData({ name: student.name, email: student.email, phoneNumber: student.phoneNumber || '', stream: student.stream || 'CSE Core' });
+            setShowEditModal(true);
+        };
+
+        const filteredStudents = students.filter(student => student.name?.toLowerCase().includes(searchTerm.toLowerCase()) || student.email?.toLowerCase().includes(searchTerm.toLowerCase()) || student.loginId?.toLowerCase().includes(searchTerm.toLowerCase()));
+
+        return (
+            <div className={`p-6 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
+                <div className="flex justify-between items-center mb-6">
+                    <div><h1 className={`text-3xl font-bold ${getTextColor()}`}>👥 Student Management</h1><p className={`text-sm ${getSubTextColor()} mt-1`}>Manage students and their streams</p></div>
+                    <button onClick={() => setShowAddModal(true)} className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition flex items-center gap-2 shadow-md"><span className="text-xl">+</span> Add Student</button>
+                </div>
+                {error && <div className="bg-red-100 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded mb-4 flex justify-between"><span>{error}</span><button onClick={() => setError('')} className="text-red-700 font-bold">×</button></div>}
+                {success && <div className="bg-green-100 border-l-4 border-green-500 text-green-700 px-4 py-3 rounded mb-4 flex justify-between"><span>{success}</span><button onClick={() => setSuccess('')} className="text-green-700 font-bold">×</button></div>}
+                <div className={`${getCardBg()} rounded-xl shadow-md p-4 mb-6`}>
+                    <div className="flex gap-4">
+                        <div className="flex-1">
+                            <input type="text" placeholder="Search students by name, email, or login ID..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`} />
+                        </div>
+                        <div className={`text-sm ${getSubTextColor()} flex items-center`}>{filteredStudents.length} students found</div>
+                    </div>
+                </div>
+                <div className={`${getCardBg()} rounded-xl shadow-lg overflow-hidden`}>
+                    {loading ? <div className="flex justify-center items-center py-12"><div className="spinner"></div></div> :
+                    filteredStudents.length === 0 ? <div className="text-center py-12"><div className="text-6xl mb-4">📚</div><p className={`text-lg ${getSubTextColor()}`}>No students found</p></div> :
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead className={`${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                                <tr><th className={`px-6 py-3 text-left text-sm font-semibold ${getTextColor()}`}>Login ID</th><th className={`px-6 py-3 text-left text-sm font-semibold ${getTextColor()}`}>Name</th><th className={`px-6 py-3 text-left text-sm font-semibold ${getTextColor()}`}>Email</th><th className={`px-6 py-3 text-left text-sm font-semibold ${getTextColor()}`}>Stream</th><th className={`px-6 py-3 text-left text-sm font-semibold ${getTextColor()}`}>Joined</th><th className={`px-6 py-3 text-left text-sm font-semibold ${getTextColor()}`}>Actions</th></tr>
+                            </thead>
+                            <tbody>
+                                {filteredStudents.map((student) => (
+                                    <tr key={student.id} className={`border-t ${isDarkMode ? 'border-gray-700' : ''} hover:bg-gray-50 transition`}>
+                                        <td className={`px-6 py-3 font-mono text-sm text-blue-600 font-bold ${isDarkMode ? 'text-blue-400' : ''}`}>{student.loginId || 'N/A'}</td>
+                                        <td className={`px-6 py-3 font-medium ${getTextColor()}`}>{student.name}</td>
+                                        <td className={`px-6 py-3 ${getSubTextColor()}`}>{student.email}</td>
+                                        <td className="px-6 py-3"><span className={`px-2 py-1 rounded-full text-xs font-medium ${isDarkMode ? 'bg-blue-900 text-blue-300' : 'bg-blue-100 text-blue-700'}`}>{student.stream || 'CSE Core'}</span></td>
+                                        <td className={`px-6 py-3 text-sm ${getSubTextColor()}`}>{student.createdAt ? new Date(student.createdAt).toLocaleDateString() : '—'}<br /><span className={`text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>{student.createdAt ? new Date(student.createdAt).toLocaleTimeString() : ''}</span></td>
+                                        <td className="px-6 py-3"><div className="flex gap-2"><button onClick={() => openEditModal(student)} className="bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600 transition text-sm">✏️ Edit</button><button onClick={() => handleDeleteStudent(student.id)} className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition text-sm">🗑️ Delete</button></div></td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>}
+                </div>
+                {/* Add Student Modal */}
+                {showAddModal && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 fade-in modal-overlay">
+                        <div className={`${getCardBg()} rounded-xl shadow-2xl p-8 w-full max-w-md max-h-[90vh] overflow-y-auto`}>
+                            <div className="flex justify-between items-center mb-6"><h2 className={`text-2xl font-bold ${getTextColor()}`}>➕ Add Student</h2><button onClick={() => setShowAddModal(false)} className="text-gray-500 hover:text-gray-700 text-2xl">×</button></div>
+                            <form onSubmit={handleAddStudent}>
+                                <div className="mb-4"><label className={`block ${getTextColor()} font-bold mb-2`}>Full Name *</label><input type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`} required /></div>
+                                <div className="mb-4"><label className={`block ${getTextColor()} font-bold mb-2`}>Email *</label><input type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`} required /></div>
+                                <div className="mb-4"><label className={`block ${getTextColor()} font-bold mb-2`}>Phone Number</label><input type="tel" value={formData.phoneNumber} onChange={(e) => setFormData({...formData, phoneNumber: e.target.value})} className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`} placeholder="Optional" /></div>
+                                <div className="mb-4"><label className={`block ${getTextColor()} font-bold mb-2`}>Stream</label><select value={formData.stream} onChange={(e) => setFormData({...formData, stream: e.target.value})} className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}>{streams.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
+                                <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200"><p className="text-sm text-gray-600">📌 Student will login using OTP sent to their email. No password needed!</p></div>
+                                <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition disabled:opacity-50">{loading ? 'Adding...' : 'Add Student'}</button>
+                            </form>
+                        </div>
+                    </div>
+                )}
+                {/* Edit Student Modal */}
+                {showEditModal && editingStudent && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 fade-in modal-overlay">
+                        <div className={`${getCardBg()} rounded-xl shadow-2xl p-8 w-full max-w-md max-h-[90vh] overflow-y-auto`}>
+                            <div className="flex justify-between items-center mb-6"><h2 className={`text-2xl font-bold ${getTextColor()}`}>✏️ Edit Student</h2><button onClick={() => { setShowEditModal(false); setEditingStudent(null); setFormData({ name: '', email: '', phoneNumber: '', stream: 'CSE Core' }); }} className="text-gray-500 hover:text-gray-700 text-2xl">×</button></div>
+                            <form onSubmit={handleUpdateStudent}>
+                                <div className="mb-4"><label className={`block ${getTextColor()} font-bold mb-2`}>Full Name *</label><input type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`} required /></div>
+                                <div className="mb-4"><label className={`block ${getTextColor()} font-bold mb-2`}>Email *</label><input type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`} required /></div>
+                                <div className="mb-4"><label className={`block ${getTextColor()} font-bold mb-2`}>Phone Number</label><input type="tel" value={formData.phoneNumber} onChange={(e) => setFormData({...formData, phoneNumber: e.target.value})} className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`} /></div>
+                                <div className="mb-4"><label className={`block ${getTextColor()} font-bold mb-2`}>Stream</label><select value={formData.stream} onChange={(e) => setFormData({...formData, stream: e.target.value})} className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`}>{streams.map(s => <option key={s} value={s}>{s}</option>)}</select></div>
+                                <button type="submit" disabled={loading} className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition disabled:opacity-50">{loading ? 'Updating...' : 'Update Student'}</button>
+                            </form>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // ==================== FACULTY MANAGEMENT PAGE ====================
+    function FacultyManagementPage({ isDarkMode = false }) {
+        const [faculty, setFaculty] = useState([]);
+        const [loading, setLoading] = useState(true);
+        const [error, setError] = useState('');
+        const [success, setSuccess] = useState('');
+        const [showAddModal, setShowAddModal] = useState(false);
+        const [formData, setFormData] = useState({ name: '', email: '', phoneNumber: '' });
+
+        const getCardBg = () => isDarkMode ? 'bg-gray-800 border-gray-700' : 'bg-white';
+        const getTextColor = () => isDarkMode ? 'text-white' : 'text-gray-800';
+        const getSubTextColor = () => isDarkMode ? 'text-gray-400' : 'text-gray-500';
+
+        useEffect(() => { fetchFaculty(); }, []);
+
+        const fetchFaculty = async () => {
+            setLoading(true); setError('');
+            try {
+                const response = await api.get('/users/faculty');
+                setFaculty(response.data || []);
+            } catch (err) { setError('Failed to load faculty'); }
+            setLoading(false);
+        };
+
+        const handleAddFaculty = async (e) => {
+            e.preventDefault();
+            setLoading(true); setError(''); setSuccess('');
+            try {
+                const response = await api.post('/users/faculty', { name: formData.name, email: formData.email, phoneNumber: formData.phoneNumber });
+                setSuccess(`Faculty added successfully! Login ID: ${response.data.loginId}`);
+                setShowAddModal(false);
+                setFormData({ name: '', email: '', phoneNumber: '' });
+                fetchFaculty();
+            } catch (err) { setError(err.response?.data?.error || 'Failed to add faculty'); }
+            finally { setLoading(false); }
+        };
+
+        const handleDeleteFaculty = async (id) => {
+            if (!confirm('Are you sure you want to delete this faculty?')) return;
+            setLoading(true);
+            try {
+                await api.delete(`/users/${id}`);
+                setSuccess('Faculty deleted successfully!');
+                fetchFaculty();
+            } catch (err) { setError('Failed to delete faculty'); }
+            finally { setLoading(false); }
+        };
+
+        return (
+            <div className={`p-6 ${isDarkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
+                <div className="flex justify-between items-center mb-6">
+                    <h1 className={`text-3xl font-bold ${getTextColor()}`}>👨‍🏫 Faculty Management</h1>
+                    <button onClick={() => setShowAddModal(true)} className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition flex items-center gap-2 shadow-md"><span className="text-xl">+</span> Add Faculty</button>
+                </div>
+                {error && <div className="bg-red-100 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded mb-4 flex justify-between"><span>{error}</span><button onClick={() => setError('')} className="text-red-700 font-bold">×</button></div>}
+                {success && <div className="bg-green-100 border-l-4 border-green-500 text-green-700 px-4 py-3 rounded mb-4 flex justify-between"><span>{success}</span><button onClick={() => setSuccess('')} className="text-green-700 font-bold">×</button></div>}
+                <div className={`${getCardBg()} rounded-xl shadow-lg overflow-hidden`}>
+                    {loading ? <div className="flex justify-center items-center py-12"><div className="spinner"></div></div> :
+                    faculty.length === 0 ? <div className="text-center py-12"><div className="text-6xl mb-4">👨‍🏫</div><p className={`text-lg ${getSubTextColor()}`}>No faculty members found</p></div> :
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead className={`${isDarkMode ? 'bg-gray-700' : 'bg-gray-100'}`}>
+                                <tr><th className={`px-6 py-3 text-left text-sm font-semibold ${getTextColor()}`}>Login ID</th><th className={`px-6 py-3 text-left text-sm font-semibold ${getTextColor()}`}>Name</th><th className={`px-6 py-3 text-left text-sm font-semibold ${getTextColor()}`}>Email</th><th className={`px-6 py-3 text-left text-sm font-semibold ${getTextColor()}`}>Phone</th><th className={`px-6 py-3 text-left text-sm font-semibold ${getTextColor()}`}>Actions</th></tr>
+                            </thead>
+                            <tbody>
+                                {faculty.map((member) => (
+                                    <tr key={member.id} className={`border-t ${isDarkMode ? 'border-gray-700' : ''} hover:bg-gray-50 transition`}>
+                                        <td className={`px-6 py-3 font-mono text-sm text-purple-600 font-bold ${isDarkMode ? 'text-purple-400' : ''}`}>{member.loginId || 'N/A'}</td>
+                                        <td className={`px-6 py-3 font-medium ${getTextColor()}`}>{member.name}</td>
+                                        <td className={`px-6 py-3 ${getSubTextColor()}`}>{member.email}</td>
+                                        <td className={`px-6 py-3 ${getSubTextColor()}`}>{member.phoneNumber || '—'}</td>
+                                        <td className="px-6 py-3"><button onClick={() => handleDeleteFaculty(member.id)} className="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition text-sm">🗑️ Delete</button></td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>}
+                </div>
+                {showAddModal && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 fade-in modal-overlay">
+                        <div className={`${getCardBg()} rounded-xl shadow-2xl p-8 w-full max-w-md max-h-[90vh] overflow-y-auto`}>
+                            <div className="flex justify-between items-center mb-6"><h2 className={`text-2xl font-bold ${getTextColor()}`}>➕ Add Faculty</h2><button onClick={() => setShowAddModal(false)} className="text-gray-500 hover:text-gray-700 text-2xl">×</button></div>
+                            <form onSubmit={handleAddFaculty}>
+                                <div className="mb-4"><label className={`block ${getTextColor()} font-bold mb-2`}>Full Name *</label><input type="text" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`} required /></div>
+                                <div className="mb-4"><label className={`block ${getTextColor()} font-bold mb-2`}>Email *</label><input type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`} required /></div>
+                                <div className="mb-4"><label className={`block ${getTextColor()} font-bold mb-2`}>Phone Number</label><input type="tel" value={formData.phoneNumber} onChange={(e) => setFormData({...formData, phoneNumber: e.target.value})} className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 ${isDarkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300'}`} placeholder="Optional" /></div>
+                                <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200"><p className="text-sm text-gray-600">📌 Faculty will login using OTP. No password needed!<br /><span className="text-purple-600 font-bold">Login ID will be auto-generated (e.g., 200001)</span></p></div>
+                                <button type="submit" disabled={loading} className="w-full bg-purple-600 text-white font-bold py-3 rounded-lg hover:bg-purple-700 transition disabled:opacity-50">{loading ? 'Adding...' : 'Add Faculty'}</button>
+                            </form>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    // ==================== DASHBOARD ====================
+    function Dashboard() {
+        const [currentPage, setCurrentPage] = useState('home');
+        const [isCollapsed, setIsCollapsed] = useState(false);
+        const [isDarkMode, setIsDarkMode] = useState(() => {
+            const savedTheme = localStorage.getItem('theme');
+            return savedTheme === 'dark' ? true : false;
+        });
+        const name = localStorage.getItem('name');
+        const email = localStorage.getItem('email');
+        const role = localStorage.getItem('role');
+
+        useEffect(() => {
+            if (isDarkMode) {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+            }
+        }, [isDarkMode]);
+
+        const handleLogout = () => {
+            localStorage.clear();
+            window.location.href = '/index.html';
+        };
+
+        const toggleTheme = () => {
+            setIsDarkMode(!isDarkMode);
+        };
+
+        const menuItems = [
+            { id: 'home', label: '🏠 Dashboard', roles: ['STUDENT', 'FACULTY', 'ADMIN'] },
+            { id: 'timetable', label: '📅 Timetable', roles: ['STUDENT', 'FACULTY', 'ADMIN'] },
+            { id: 'attendance', label: '✓ Attendance', roles: ['STUDENT', 'FACULTY', 'ADMIN'] },
+        ];
+
+        if (role === 'FACULTY') {
+            menuItems.push({ id: 'mark-attendance', label: '📝 Mark Attendance', roles: ['FACULTY'] });
+        }
+        if (role === 'ADMIN') {
+            menuItems.push({ id: 'users', label: '👥 Students', roles: ['ADMIN'] });
+            menuItems.push({ id: 'faculty-management', label: '👨‍🏫 Faculty', roles: ['ADMIN'] });
+        }
+
+        const visibleItems = menuItems.filter(item => item.roles.includes(role));
+
+        const roleColors = {
+            STUDENT: { bg: 'from-blue-500 to-purple-600', accent: 'blue', darkBg: 'from-blue-900 to-purple-900' },
+            FACULTY: { bg: 'from-purple-500 to-pink-600', accent: 'purple', darkBg: 'from-purple-900 to-pink-900' },
+            ADMIN: { bg: 'from-gray-700 to-gray-900', accent: 'gray', darkBg: 'from-gray-900 to-black' }
+        };
+
+        const getContent = () => {
+            if (currentPage === 'home') {
+                if (role === 'STUDENT') return <StudentDashboard setCurrentPage={setCurrentPage} isDarkMode={isDarkMode} />;
+                if (role === 'FACULTY') return <FacultyDashboard setCurrentPage={setCurrentPage} isDarkMode={isDarkMode} />;
+                if (role === 'ADMIN') return <AdminDashboard setCurrentPage={setCurrentPage} isDarkMode={isDarkMode} />;
+            }
+            if (currentPage === 'timetable') return <TimetablePage isDarkMode={isDarkMode} />;
+            if (currentPage === 'attendance') return <AttendancePage isDarkMode={isDarkMode} />;
+            if (currentPage === 'mark-attendance') return <MarkAttendancePage isDarkMode={isDarkMode} />;
+            if (currentPage === 'users') return <StudentManagementPage isDarkMode={isDarkMode} />;
+            if (currentPage === 'faculty-management') return <FacultyManagementPage isDarkMode={isDarkMode} />;
+            return null;
+        };
+
+        return (
+            <div className={`flex h-screen ${isDarkMode ? 'dark' : ''}`}>
+                <div className={`bg-gray-900 text-white flex flex-col h-screen sticky top-0 sidebar-transition ${isCollapsed ? 'w-16' : 'w-64'} ${isDarkMode ? 'dark:bg-gray-950' : ''}`}>
+                    <div className={`p-4 border-b border-gray-800 flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+                        {!isCollapsed && <span className="text-xl font-bold">🏫 Campus</span>}
+                        <button onClick={() => setIsCollapsed(!isCollapsed)} className="text-white hover:bg-gray-800 p-2 rounded-lg transition">
+                            {isCollapsed ? '☰' : '◀'}
+                        </button>
+                    </div>
+                    <nav className="flex-1 p-4 space-y-2">
+                        {visibleItems.map(item => (
+                            <button
+                                key={item.id}
+                                onClick={() => setCurrentPage(item.id)}
+                                className={`w-full text-left px-4 py-2 rounded-lg sidebar-link ${
+                                    currentPage === item.id ? `bg-${roleColors[role].accent}-600 text-white` : 'hover:bg-gray-800 text-gray-300'
+                                } ${isCollapsed ? 'text-center px-2' : ''}`}
+                                title={isCollapsed ? item.label : ''}
+                            >
+                                {isCollapsed ? item.label.split(' ')[0] : item.label}
+                            </button>
+                        ))}
+                    </nav>
+                    <div className={`p-4 border-t border-gray-800 ${isCollapsed ? 'text-center' : ''}`}>
+                        <button onClick={toggleTheme} className={`w-full mb-3 ${isCollapsed ? 'text-center' : ''} bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 rounded-lg transition text-sm flex items-center justify-center gap-2`}>
+                            {isDarkMode ? '☀️' : '🌙'}
+                            {!isCollapsed && (isDarkMode ? ' Light Mode' : ' Dark Mode')}
+                        </button>
+                        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3'}`}>
+                            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-sm font-bold">
+                                {name?.charAt(0) || 'U'}
+                            </div>
+                            {!isCollapsed && (
+                                <div className="flex-1">
+                                    <p className="text-sm font-medium truncate">{name || email}</p>
+                                    <p className="text-xs text-gray-400">{role}</p>
+                                </div>
+                            )}
+                        </div>
+                        {!isCollapsed && (
+                            <button onClick={handleLogout} className="w-full mt-3 bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-lg transition text-sm">
+                                🚪 Logout
+                            </button>
+                        )}
+                        {isCollapsed && (
+                            <button onClick={handleLogout} className="w-full mt-3 bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded-lg transition text-sm">
+                                🚪
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                {/* Main Content */}
+                <div className={`flex-1 overflow-auto ${isDarkMode ? 'dark:bg-gray-900' : 'bg-gray-100'}`}>
+                    {getContent()}
+                </div>
+            </div>
+        );
+    }
+
+    // ==================== MAIN APP ====================
+    function App() {
+        const [page, setPage] = useState('login');
+        const token = localStorage.getItem('token');
+
+        useEffect(() => {
+            if (token && !localStorage.getItem('userId')) {
+                localStorage.clear();
+                window.location.reload();
+            }
+        }, []);
+
+        if (token) {
+            return <Dashboard />;
+        }
+
+        return (
+            <div>
+                {page === 'login' && <LoginPage onSwitchToRegister={() => setPage('register')} />}
+                {page === 'register' && <RegisterPage onSwitchToLogin={() => setPage('login')} />}
+            </div>
+        );
+    }
+
+    ReactDOM.render(<App />, document.getElementById('root'));
+</script>
+</body>
+</html>
