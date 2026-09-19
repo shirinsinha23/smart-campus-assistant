@@ -1,6 +1,5 @@
 package com.example.smartcampusassistant.cafeteria.model;
 
-import com.example.smartcampusassistant.cafeteria.MealType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;

@@ -1,10 +1,1085 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>$Title$</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>📋 Complaints · Smart Campus</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f1f5f9; }
+    .dark body { background: #0b1120; }
+
+    .sidebar {
+        position: fixed; left: 0; top: 0; height: 100vh; width: 260px;
+        background: #0f172a; color: #e2e8f0; z-index: 1000;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        overflow-y: auto; overflow-x: hidden;
+        display: flex; flex-direction: column;
+        box-shadow: 4px 0 20px rgba(0,0,0,0.3);
+    }
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+    .sidebar.collapsed { width: 72px; }
+    .sidebar.collapsed .sidebar-label,
+    .sidebar.collapsed .sidebar-user-name,
+    .sidebar.collapsed .sidebar-user-role,
+    .sidebar.collapsed .sidebar-logout-text { display: none; }
+    .sidebar.collapsed .sidebar-item { justify-content: center; padding: 12px; }
+    .sidebar.collapsed .sidebar-item .icon { margin-right: 0; font-size: 1.5rem; }
+    .sidebar.collapsed .sidebar-header .logo-text { display: none; }
+
+    .sidebar-header {
+        padding: 18px 20px; border-bottom: 1px solid #1e293b;
+        display: flex; align-items: center; justify-content: space-between;
+        min-height: 68px;
+    }
+    .sidebar-header .logo-text {
+        font-size: 1.2rem; font-weight: 700;
+        background: linear-gradient(135deg, #60a5fa, #a78bfa);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        white-space: nowrap;
+    }
+    .sidebar-toggle-btn {
+        background: transparent; border: none; color: #94a3b8;
+        font-size: 1.2rem; cursor: pointer; padding: 4px 8px;
+        border-radius: 6px; transition: 0.2s;
+    }
+    .sidebar-toggle-btn:hover { background: #1e293b; color: white; }
+
+    .sidebar-menu { flex: 1; padding: 12px 10px; }
+    .sidebar-menu-title {
+        font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em;
+        color: #64748b; padding: 12px 12px 6px; font-weight: 600;
+    }
+    .sidebar.collapsed .sidebar-menu-title { display: none; }
+
+    .sidebar-item {
+        display: flex; align-items: center; gap: 12px;
+        padding: 10px 14px; border-radius: 10px; cursor: pointer;
+        transition: all 0.2s ease; color: #94a3b8;
+        font-size: 0.875rem; font-weight: 500; width: 100%;
+        border: none; background: transparent; text-align: left;
+        white-space: nowrap; overflow: hidden;
+    }
+    .sidebar-item:hover { background: rgba(255,255,255,0.06); color: #f1f5f9; }
+    .sidebar-item.active { background: #3b82f6; color: white; box-shadow: 0 4px 12px rgba(59,130,246,0.3); }
+    .sidebar-item .icon { font-size: 1.2rem; min-width: 28px; text-align: center; }
+    .sidebar-item .sidebar-label { flex: 1; }
+
+    .sidebar-footer {
+        padding: 16px 14px; border-top: 1px solid #1e293b; margin-top: auto;
+    }
+    .sidebar-user {
+        display: flex; align-items: center; gap: 12px;
+        padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,0.04);
+    }
+    .sidebar-user-avatar {
+        width: 36px; height: 36px; border-radius: 50%;
+        background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+        display: flex; align-items: center; justify-content: center;
+        font-weight: 700; font-size: 0.9rem; color: white; flex-shrink: 0;
+    }
+    .sidebar-user-name { font-size: 0.875rem; font-weight: 600; color: #f1f5f9; }
+    .sidebar-user-role { font-size: 0.65rem; color: #94a3b8; text-transform: uppercase; }
+
+    .sidebar-logout {
+        display: flex; align-items: center; gap: 12px;
+        padding: 8px 10px; border-radius: 10px; cursor: pointer;
+        transition: all 0.2s ease; color: #94a3b8;
+        border: none; background: transparent; width: 100%;
+        font-size: 0.875rem; margin-top: 6px;
+    }
+    .sidebar-logout:hover { background: rgba(239,68,68,0.15); color: #ef4444; }
+
+    .main-content {
+        margin-left: 260px; min-height: 100vh;
+        background: #f1f5f9; padding: 24px;
+        transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .sidebar.collapsed ~ .main-content { margin-left: 72px; }
+    .dark .sidebar { background: #0b1120; }
+    .dark .sidebar-header { border-color: #1e293b; }
+    .dark .sidebar-footer { border-color: #1e293b; }
+    .dark .sidebar-item:hover { background: rgba(255,255,255,0.04); }
+    .dark .sidebar-item.active { background: #2563eb; }
+    .dark .main-content { background: #0b1120; }
+
+    .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 999; }
+    .sidebar-overlay.active { display: block; }
+    @media (max-width: 768px) {
+        .sidebar { transform: translateX(-100%); width: 280px; }
+        .sidebar.open { transform: translateX(0); }
+        .sidebar.collapsed { width: 280px; }
+        .sidebar.collapsed .sidebar-label,
+        .sidebar.collapsed .sidebar-user-name,
+        .sidebar.collapsed .sidebar-user-role { display: block; }
+        .sidebar.collapsed .sidebar-item { justify-content: flex-start; padding: 10px 14px; }
+        .sidebar.collapsed .sidebar-header .logo-text { display: block; }
+        .main-content { margin-left: 0; padding-top: 16px; }
+        .sidebar.collapsed ~ .main-content { margin-left: 0; }
+        .sidebar-toggle-mobile {
+            display: block !important;
+            position: fixed; top: 12px; left: 12px; z-index: 1001;
+            background: #0f172a; color: white; border: none;
+            padding: 8px 14px; border-radius: 8px; cursor: pointer;
+            font-size: 1.2rem; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .dark .sidebar-toggle-mobile { background: #0b1120; }
+    }
+    .sidebar-toggle-mobile { display: none; }
+
+    .card-modern {
+        background: #ffffff; border-radius: 16px; padding: 24px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid #e5e7eb;
+        transition: all 0.3s ease;
+    }
+    .dark .card-modern { background: #182235; border-color: #253450; }
+    .stat-card {
+        background: #ffffff; border-radius: 16px; padding: 20px 24px;
+        border: 1px solid #e5e7eb; transition: all 0.3s ease; cursor: default;
+    }
+    .dark .stat-card { background: #182235; border-color: #253450; }
+    .stat-label { color: #64748b; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; }
+    .dark .stat-label { color: #94a3b8; }
+    .stat-value { color: #0f172a; font-size: 1.75rem; font-weight: 700; }
+    .dark .stat-value { color: #e8edf5; }
+    .stat-sub { color: #94a3b8; font-size: 0.75rem; margin-top: 4px; }
+    .dark .stat-sub { color: #6b7a93; }
+
+    .btn-primary { background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 10px 20px; border-radius: 10px; border: none; cursor: pointer; font-weight: 600; transition: all 0.3s ease; }
+    .btn-primary:hover { transform: scale(1.02); box-shadow: 0 4px 15px rgba(59,130,246,0.4); }
+    .btn-danger { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; transition: all 0.3s ease; }
+    .btn-danger:hover { transform: scale(1.02); box-shadow: 0 4px 15px rgba(239,68,68,0.4); }
+    .btn-success { background: linear-gradient(135deg, #22c55e, #16a34a); color: white; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; transition: all 0.3s ease; }
+    .btn-success:hover { transform: scale(1.02); box-shadow: 0 4px 15px rgba(34,197,94,0.4); }
+    .btn-warning { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; transition: all 0.3s ease; }
+    .btn-warning:hover { transform: scale(1.02); box-shadow: 0 4px 15px rgba(245,158,11,0.4); }
+    .btn-purple { background: linear-gradient(135deg, #8b5cf6, #7c3aed); color: white; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; transition: all 0.3s ease; }
+    .btn-purple:hover { transform: scale(1.02); box-shadow: 0 4px 15px rgba(139,92,246,0.4); }
+
+    .badge { padding: 4px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
+
+    .badge-pending { background: #fef3c7; color: #92400e; }
+    .badge-inprogress { background: #dbeafe; color: #1e40af; }
+    .badge-resolved { background: #dcfce7; color: #166534; }
+    .badge-rejected { background: #fee2e2; color: #991b1b; }
+    .dark .badge-pending { background: #3a2a1a; color: #fdba74; }
+    .dark .badge-inprogress { background: #1a2a5a; color: #93c5fd; }
+    .dark .badge-resolved { background: #1a3a2a; color: #6ee7b7; }
+    .dark .badge-rejected { background: #3a1a1a; color: #fca5a5; }
+
+    .badge-category { padding: 4px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
+    .badge-hostel { background: #f3e8ff; color: #6d28d9; }
+    .badge-library { background: #dbeafe; color: #1d4ed8; }
+    .badge-classroom { background: #d1fae5; color: #065f46; }
+    .badge-internet { background: #fce7f3; color: #9d174d; }
+    .badge-transport { background: #ffedd5; color: #9a3412; }
+    .badge-cafeteria { background: #fecaca; color: #991b1b; }
+    .dark .badge-hostel { background: #2a1a4a; color: #c4b5fd; }
+    .dark .badge-library { background: #1e3a5f; color: #93c5fd; }
+    .dark .badge-classroom { background: #1a3a2a; color: #6ee7b7; }
+    .dark .badge-internet { background: #3a1a3a; color: #f9a8d4; }
+    .dark .badge-transport { background: #3a2a1a; color: #fdba74; }
+    .dark .badge-cafeteria { background: #3a1a1a; color: #fca5a5; }
+
+    .modal-overlay { background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); }
+    .modal-content { background: white; border-radius: 16px; padding: 24px; max-width: 480px; width: 100%; max-height: 90vh; overflow-y: auto; }
+    .dark .modal-content { background: #182235; }
+
+    .input-field { width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 10px; outline: none; transition: all 0.3s ease; background: white; color: #111827; }
+    .input-field:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+    .dark .input-field { background: #253450; border-color: #3a4a66; color: #e8edf5; }
+    .dark .input-field:focus { border-color: #60a5fa; box-shadow: 0 0 0 3px rgba(96,165,250,0.1); }
+
+    .scrollable { max-height: 400px; overflow-y: auto; }
+    .scrollable::-webkit-scrollbar { width: 4px; }
+    .scrollable::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
+
+    .welcome-gradient { background: linear-gradient(135deg, #1e3a5f 0%, #4a90d9 50%, #6b9bff 100%); }
+    .dark .welcome-gradient { background: linear-gradient(135deg, #0b1a2e 0%, #1a3a5f 50%, #2a4a7a 100%); }
+    .welcome-text { color: white; }
+    .welcome-sub { color: rgba(255,255,255,0.8); }
+
+    .table-header { background: #f8fafc; }
+    .dark .table-header { background: #1e293b; }
+    .table-header-text { color: #475569; }
+    .dark .table-header-text { color: #94a3b8; }
+    .table-border { border-color: #e5e7eb; }
+    .dark .table-border { border-color: #253450; }
+    .table-cell { color: #0f172a; }
+    .dark .table-cell { color: #e8edf5; }
+    .row-hover:hover { background: #f8fafc; }
+    .dark .row-hover:hover { background: #1e293b; }
+
+    .text-small { font-size: 0.75rem; }
+  </style>
 </head>
 <body>
-$END$
+<div id="root"></div>
+
+<script type="text/babel">
+  const { useState, useEffect } = React;
+
+  const API_BASE_URL = '/api';
+
+  const api = axios.create({
+      baseURL: API_BASE_URL,
+      headers: { 'Content-Type': 'application/json' }
+  });
+
+  api.interceptors.request.use(config => {
+      const token = localStorage.getItem('token');
+      if (token) {
+          config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
+  });
+
+  api.interceptors.response.use(
+      response => response,
+      error => {
+          if (error.response?.status === 401) {
+              localStorage.clear();
+              window.location.href = 'index.html';
+          }
+          return Promise.reject(error);
+      }
+  );
+
+  // ==================== LOGIN PAGE ====================
+  function LoginPage({ onLogin }) {
+      const [loginId, setLoginId] = useState('');
+      const [email, setEmail] = useState('');
+      const [error, setError] = useState('');
+      const [success, setSuccess] = useState('');
+      const [loading, setLoading] = useState(false);
+      const [otpSent, setOtpSent] = useState(false);
+      const [otpTimer, setOtpTimer] = useState(0);
+      const [resendDisabled, setResendDisabled] = useState(false);
+      const [otpInputs, setOtpInputs] = useState(['', '', '', '', '', '']);
+      const [detectedRole, setDetectedRole] = useState('');
+
+      useEffect(() => {
+          let interval;
+          if (otpTimer > 0) {
+              interval = setInterval(() => { setOtpTimer(prev => prev - 1); }, 1000);
+          } else {
+              setResendDisabled(false);
+          }
+          return () => clearInterval(interval);
+      }, [otpTimer]);
+
+      useEffect(() => {
+          if (loginId.startsWith('10')) setDetectedRole('Student');
+          else if (loginId.startsWith('20')) setDetectedRole('Faculty');
+          else if (loginId.startsWith('30')) setDetectedRole('Admin');
+          else setDetectedRole('');
+      }, [loginId]);
+
+      const handleSendOtp = async (e) => {
+          e.preventDefault();
+          setError(''); setSuccess(''); setLoading(true);
+          if (!loginId || loginId.trim() === '') {
+              setError('Please enter your Login ID');
+              setLoading(false);
+              return;
+          }
+          try {
+              const response = await api.post('/auth/send-otp', { loginId });
+              setSuccess('OTP sent successfully to your registered email');
+              setOtpSent(true);
+              setOtpTimer(60);
+              setResendDisabled(true);
+              setError('');
+              setEmail(response.data.email);
+              console.log('📧 OTP for Login ID ' + loginId + ': ' + response.data.otp);
+          } catch (err) {
+              setError(err.response?.data?.message || 'Failed to send OTP');
+          } finally {
+              setLoading(false);
+          }
+      };
+
+      const handleVerifyOtp = async (e) => {
+          e.preventDefault();
+          setError(''); setSuccess(''); setLoading(true);
+          const fullOtp = otpInputs.join('');
+          if (fullOtp.length !== 6) {
+              setError('Please enter a valid 6-digit OTP');
+              setLoading(false);
+              return;
+          }
+          try {
+              const response = await api.post('/auth/login', { loginId, otp: fullOtp });
+              localStorage.setItem('token', response.data.token);
+              localStorage.setItem('userId', response.data.userId);
+              localStorage.setItem('loginId', response.data.loginId);
+              localStorage.setItem('name', response.data.name);
+              localStorage.setItem('email', response.data.email);
+              localStorage.setItem('role', response.data.role);
+              onLogin();
+          } catch (err) {
+              setError(err.response?.data?.message || 'Invalid or expired OTP. Please request a new OTP.');
+          } finally {
+              setLoading(false);
+          }
+      };
+
+      const handleOtpInputChange = (index, value) => {
+          if (value.length > 1) return;
+          const newOtpInputs = [...otpInputs];
+          newOtpInputs[index] = value;
+          setOtpInputs(newOtpInputs);
+          if (value && index < 5) {
+              document.getElementById(`otp-input-${index + 1}`)?.focus();
+          }
+      };
+
+      const handleKeyDown = (index, e) => {
+          if (e.key === 'Backspace' && !otpInputs[index] && index > 0) {
+              document.getElementById(`otp-input-${index - 1}`)?.focus();
+          }
+      };
+
+      const handleQuickLogin = (id) => {
+          setLoginId(id);
+          setTimeout(() => {
+              const form = document.querySelector('#loginForm');
+              if (form) form.dispatchEvent(new Event('submit'));
+          }, 300);
+      };
+
+      const getRoleColors = () => {
+          if (detectedRole === 'Student') return { bg: 'bg-blue-50 dark:bg-blue-900/30', text: 'text-blue-600 dark:text-blue-400', border: 'border-blue-500 dark:border-blue-700' };
+          if (detectedRole === 'Faculty') return { bg: 'bg-purple-50 dark:bg-purple-900/30', text: 'text-purple-600 dark:text-purple-400', border: 'border-purple-500 dark:border-purple-700' };
+          if (detectedRole === 'Admin') return { bg: 'bg-red-50 dark:bg-red-900/30', text: 'text-red-600 dark:text-red-400', border: 'border-red-500 dark:border-red-700' };
+          return { bg: 'bg-gray-50 dark:bg-gray-800', text: 'text-gray-600 dark:text-gray-400', border: 'border-gray-300 dark:border-gray-700' };
+      };
+
+      const colors = getRoleColors();
+
+      return (
+          <div className="min-h-screen welcome-gradient flex items-center justify-center p-4">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-8 w-full max-w-md">
+                  <div className="text-center mb-6">
+                      <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-lg">
+                          <span className="text-3xl">📋</span>
+                      </div>
+                      <h1 className="text-2xl font-bold text-gray-800 dark:text-white">Smart Campus Complaints</h1>
+                      <p className="text-sm text-gray-500 dark:text-gray-400">Login to manage complaints</p>
+                      {detectedRole && (
+                          <span className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-medium ${colors.bg} ${colors.text} border ${colors.border}`}>
+                              {detectedRole} Login
+                          </span>
+                      )}
+                  </div>
+
+                  {error && (
+                      <div className="bg-red-50 dark:bg-red-900/30 border-l-4 border-red-500 text-red-700 dark:text-red-400 px-4 py-2 rounded-lg mb-4 text-sm">
+                          {error}
+                      </div>
+                  )}
+                  {success && (
+                      <div className="bg-green-50 dark:bg-green-900/30 border-l-4 border-green-500 text-green-700 dark:text-green-400 px-4 py-2 rounded-lg mb-4 text-sm">
+                          {success}
+                      </div>
+                  )}
+
+                  {!otpSent ? (
+                      <form id="loginForm" onSubmit={handleSendOtp}>
+                          <div className="mb-4">
+                              <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-1">Login ID</label>
+                              <div className="relative">
+                                  <span className={`absolute left-3 top-2.5 ${colors.text}`}>🆔</span>
+                                  <input type="text" value={loginId} onChange={(e) => setLoginId(e.target.value)}
+                                      className={`w-full pl-10 pr-3 py-2.5 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white ${colors.border}`}
+                                      placeholder="Enter your Login ID" required />
+                              </div>
+                          </div>
+
+                          <div className="mb-4">
+                              <p className="text-xs text-gray-500 dark:text-gray-400 text-center mb-2">Quick Login</p>
+                              <div className="grid grid-cols-3 gap-2">
+                                  <button type="button" onClick={() => handleQuickLogin('1001')} className="bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 py-1.5 rounded-lg text-sm hover:bg-blue-200 dark:hover:bg-blue-800 transition">🎓 Student</button>
+                                  <button type="button" onClick={() => handleQuickLogin('200001')} className="bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-300 py-1.5 rounded-lg text-sm hover:bg-purple-200 dark:hover:bg-purple-800 transition">👨‍🏫 Faculty</button>
+                                  <button type="button" onClick={() => handleQuickLogin('300001')} className="bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-300 py-1.5 rounded-lg text-sm hover:bg-red-200 dark:hover:bg-red-800 transition">👨‍💼 Admin</button>
+                              </div>
+                          </div>
+
+                          <button type="submit" disabled={loading} className="w-full btn-primary text-lg py-2.5 disabled:opacity-50">
+                              {loading ? 'Sending OTP...' : '📧 Send OTP'}
+                          </button>
+                      </form>
+                  ) : (
+                      <form onSubmit={handleVerifyOtp}>
+                          <div className="text-center mb-4">
+                              <p className="text-sm text-gray-600 dark:text-gray-400">OTP sent to your email</p>
+                              {email && <p className="text-xs text-gray-500 dark:text-gray-500">({email})</p>}
+                          </div>
+                          <div className="mb-4">
+                              <label className="block text-gray-700 dark:text-gray-300 text-sm font-bold mb-2 text-center">Enter 6-Digit OTP</label>
+                              <div className="flex justify-center gap-2">
+                                  {otpInputs.map((value, index) => (
+                                      <input key={index} id={`otp-input-${index}`} type="text" maxLength="1" value={value}
+                                          onChange={(e) => handleOtpInputChange(index, e.target.value)}
+                                          onKeyDown={(e) => handleKeyDown(index, e)}
+                                          className={`w-10 h-12 text-center text-xl font-bold border-2 ${colors.border} rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white`}
+                                          autoFocus={index === 0} />
+                                  ))}
+                              </div>
+                          </div>
+                          <button type="submit" disabled={loading} className="w-full btn-primary text-lg py-2.5 disabled:opacity-50">
+                              {loading ? 'Verifying...' : '🔐 Verify & Login'}
+                          </button>
+                          <div className="text-center mt-3">
+                              <button type="button" onClick={() => { setOtpSent(false); setOtpInputs(['', '', '', '', '', '']); }} className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">← Back</button>
+                              <span className="mx-2 text-gray-300 dark:text-gray-600">|</span>
+                              <button type="button" onClick={handleSendOtp} disabled={resendDisabled} className={`text-sm ${resendDisabled ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed' : 'text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300'}`}>
+                                  {resendDisabled ? `Resend in ${otpTimer}s` : 'Resend OTP'}
+                              </button>
+                          </div>
+                      </form>
+                  )}
+              </div>
+          </div>
+      );
+  }
+
+  // ==================== MAIN APP ====================
+  function App() {
+      const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('token'));
+      const [isDarkMode, setIsDarkMode] = useState(() => {
+          const savedTheme = localStorage.getItem('theme');
+          return savedTheme === 'dark' ? true : false;
+      });
+      const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+      const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+      const [loading, setLoading] = useState(true);
+      const [activeTab, setActiveTab] = useState('dashboard');
+
+      const name = localStorage.getItem('name') || 'User';
+      const role = localStorage.getItem('role') || 'STUDENT';
+      const userId = localStorage.getItem('userId');
+
+      // Complaint states
+      const [complaints, setComplaints] = useState([]);
+      const [filterCategory, setFilterCategory] = useState('All');
+      const [filterStatus, setFilterStatus] = useState('All');
+      const [showComplaintModal, setShowComplaintModal] = useState(false);
+      const [showDetailModal, setShowDetailModal] = useState(false);
+      const [selectedComplaint, setSelectedComplaint] = useState(null);
+      const [complaintForm, setComplaintForm] = useState({
+          title: '',
+          description: '',
+          category: 'Hostel',
+          priority: 'MEDIUM'
+      });
+      const [commentText, setCommentText] = useState('');
+      const [updateStatus, setUpdateStatus] = useState('PENDING');
+      const [message, setMessage] = useState({ text: '', type: '' });
+
+      // Dashboard stats
+      const [stats, setStats] = useState({
+          total: 0,
+          pending: 0,
+          inProgress: 0,
+          resolved: 0,
+          rejected: 0
+      });
+
+      const complaintCategories = ['All', 'Hostel', 'Library', 'Classroom', 'Internet', 'Transport', 'Cafeteria'];
+      const statusOptions = ['All', 'PENDING', 'IN_PROGRESS', 'RESOLVED', 'REJECTED'];
+      const categoryIcons = {
+          'Hostel': '🏠',
+          'Library': '📚',
+          'Classroom': '🏫',
+          'Internet': '🌐',
+          'Transport': '🚌',
+          'Cafeteria': '☕'
+      };
+
+      useEffect(() => {
+          fetchComplaints();
+          if (isDarkMode) {
+              document.documentElement.classList.add('dark');
+          } else {
+              document.documentElement.classList.remove('dark');
+          }
+      }, []);
+
+      useEffect(() => {
+          if (isDarkMode) {
+              document.documentElement.classList.add('dark');
+              localStorage.setItem('theme', 'dark');
+          } else {
+              document.documentElement.classList.remove('dark');
+              localStorage.setItem('theme', 'light');
+          }
+      }, [isDarkMode]);
+
+      // ===== FETCH COMPLAINTS (NO MOCK DATA) =====
+      const fetchComplaints = async () => {
+          setLoading(true);
+          try {
+              let endpoint = '/complaints';
+              if (role === 'STUDENT') {
+                  endpoint = `/complaints/student/${userId}`;
+              } else if (role === 'FACULTY') {
+                  endpoint = '/complaints/faculty';
+              }
+
+              try {
+                  const res = await api.get(endpoint);
+                  console.log('📋 Complaints API Response:', res.data);
+                  if (res.data && res.data.length > 0) {
+                      setComplaints(res.data);
+                      calculateStats(res.data);
+                  } else {
+                      console.log('📋 No complaints found from API');
+                      setComplaints([]);
+                      calculateStats([]);
+                  }
+              } catch (e) {
+                  console.error('❌ Failed to fetch complaints:', e);
+                  setComplaints([]);
+                  calculateStats([]);
+              }
+          } catch (err) {
+              console.error('❌ Failed to load complaints:', err);
+              setComplaints([]);
+              calculateStats([]);
+          }
+          setLoading(false);
+      };
+
+      const calculateStats = (data) => {
+          setStats({
+              total: data.length,
+              pending: data.filter(c => c.status === 'PENDING').length,
+              inProgress: data.filter(c => c.status === 'IN_PROGRESS').length,
+              resolved: data.filter(c => c.status === 'RESOLVED').length,
+              rejected: data.filter(c => c.status === 'REJECTED').length
+          });
+      };
+
+      const showMessage = (text, type) => { setMessage({ text, type }); setTimeout(() => setMessage({ text: '', type: '' }), 3000); };
+
+      // ===== COMPLAINT HANDLERS =====
+      const handleCreateComplaint = async (e) => {
+          e.preventDefault();
+          setLoading(true);
+          try {
+              const complaintData = {
+                  ...complaintForm,
+                  createdBy: name,
+                  createdById: userId,
+                  createdAt: new Date().toISOString().split('T')[0],
+                  status: 'PENDING',
+                  comments: []
+              };
+              await api.post('/complaints', complaintData);
+              showMessage('Complaint submitted successfully!', 'success');
+              setShowComplaintModal(false);
+              setComplaintForm({ title: '', description: '', category: 'Hostel', priority: 'MEDIUM' });
+              fetchComplaints();
+          } catch (err) {
+              showMessage('Failed to submit complaint: ' + (err.response?.data?.message || err.message), 'error');
+          } finally {
+              setLoading(false);
+          }
+      };
+
+      const handleUpdateStatus = async (complaintId, newStatus) => {
+          setLoading(true);
+          try {
+              await api.put(`/complaints/${complaintId}/status`, { status: newStatus });
+              showMessage('Status updated successfully!', 'success');
+              fetchComplaints();
+          } catch (err) {
+              showMessage('Failed to update status: ' + (err.response?.data?.message || err.message), 'error');
+          } finally {
+              setLoading(false);
+          }
+      };
+
+      const handleAddComment = async (complaintId) => {
+          if (!commentText.trim()) return;
+          setLoading(true);
+          try {
+              await api.post(`/complaints/${complaintId}/comments`, { text: commentText, user: name });
+              showMessage('Comment added successfully!', 'success');
+              setCommentText('');
+              fetchComplaints();
+          } catch (err) {
+              showMessage('Failed to add comment: ' + (err.response?.data?.message || err.message), 'error');
+          } finally {
+              setLoading(false);
+          }
+      };
+
+      const getStatusBadge = (status) => {
+          switch(status) {
+              case 'PENDING': return 'badge-pending';
+              case 'IN_PROGRESS': return 'badge-inprogress';
+              case 'RESOLVED': return 'badge-resolved';
+              case 'REJECTED': return 'badge-rejected';
+              default: return 'badge-pending';
+          }
+      };
+
+      const getCategoryBadge = (category) => {
+          switch(category) {
+              case 'Hostel': return 'badge-hostel';
+              case 'Library': return 'badge-library';
+              case 'Classroom': return 'badge-classroom';
+              case 'Internet': return 'badge-internet';
+              case 'Transport': return 'badge-transport';
+              case 'Cafeteria': return 'badge-cafeteria';
+              default: return 'badge-library';
+          }
+      };
+
+      const handleLogin = () => { setIsLoggedIn(true); };
+      const handleLogout = () => { localStorage.clear(); setIsLoggedIn(false); window.location.href = 'index.html'; };
+      const toggleTheme = () => { setIsDarkMode(!isDarkMode); };
+
+      // ==================== SIDEBAR MENU ====================
+      const getMenuItems = () => {
+          const items = [
+              { id: 'dashboard', icon: '📊', label: 'Dashboard' },
+              { id: 'mycomplaints', icon: '📋', label: role === 'STUDENT' ? 'My Complaints' : 'All Complaints' },
+          ];
+          if (role === 'ADMIN') {
+              items.push({ id: 'manage', icon: '⚙️', label: 'Manage Complaints' });
+          }
+          return items;
+      };
+
+      // ==================== RENDER FUNCTIONS ====================
+
+      const renderDashboard = () => {
+          const filteredComplaints = complaints.filter(c => {
+              const categoryMatch = filterCategory === 'All' || c.category === filterCategory;
+              const statusMatch = filterStatus === 'All' || c.status === filterStatus;
+              return categoryMatch && statusMatch;
+          });
+
+          return (
+              <div>
+                  <div className="welcome-gradient rounded-2xl p-6 text-white mb-6 shadow-lg">
+                      <div className="flex justify-between items-center flex-wrap gap-3">
+                          <div>
+                              <h2 className="text-2xl font-bold welcome-text">📋 Complaint Dashboard</h2>
+                              <p className="welcome-sub text-sm">Track and manage all complaints</p>
+                          </div>
+                          {role !== 'ADMIN' && (
+                              <button onClick={() => setShowComplaintModal(true)} className="btn-primary bg-white/20 hover:bg-white/30 text-white border border-white/30">
+                                  + Raise Complaint
+                              </button>
+                          )}
+                      </div>
+                  </div>
+
+                  {message.text && (
+                      <div className={`mb-4 p-3 rounded-lg border-l-4 ${message.type === 'success' ? 'bg-green-100 dark:bg-green-900/30 border-green-500 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/30 border-red-500 text-red-700 dark:text-red-400'}`}>
+                          {message.text}
+                      </div>
+                  )}
+
+                  {/* Stats Cards */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                      <div className="stat-card border-l-4 border-blue-500">
+                          <p className="stat-label">Total</p>
+                          <p className="stat-value">{stats.total}</p>
+                      </div>
+                      <div className="stat-card border-l-4 border-yellow-500">
+                          <p className="stat-label">Pending</p>
+                          <p className="stat-value">{stats.pending}</p>
+                      </div>
+                      <div className="stat-card border-l-4 border-purple-500">
+                          <p className="stat-label">In Progress</p>
+                          <p className="stat-value">{stats.inProgress}</p>
+                      </div>
+                      <div className="stat-card border-l-4 border-green-500">
+                          <p className="stat-label">Resolved</p>
+                          <p className="stat-value">{stats.resolved}</p>
+                      </div>
+                  </div>
+
+                  {/* Filters */}
+                  <div className="flex flex-wrap gap-4 mb-6">
+                      <div className="min-w-[150px]">
+                          <select value={filterCategory} onChange={(e) => setFilterCategory(e.target.value)}
+                              className="input-field">
+                              {complaintCategories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                          </select>
+                      </div>
+                      <div className="min-w-[150px]">
+                          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
+                              className="input-field">
+                              {statusOptions.map(status => <option key={status} value={status}>{status}</option>)}
+                          </select>
+                      </div>
+                      <div className="text-sm text-gray-500 dark:text-gray-400 flex items-center">
+                          Showing {filteredComplaints.length} complaints
+                      </div>
+                  </div>
+
+                  {/* Complaint List */}
+                  <div className="space-y-4">
+                      {filteredComplaints.map(complaint => (
+                          <div key={complaint.id} className="card-modern hover:shadow-md transition-shadow cursor-pointer"
+                              onClick={() => { setSelectedComplaint(complaint); setShowDetailModal(true); }}>
+                              <div className="flex justify-between items-start">
+                                  <div className="flex-1">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                          <span className="text-xl">{categoryIcons[complaint.category] || '📋'}</span>
+                                          <h3 className="font-bold text-gray-800 dark:text-white">{complaint.title}</h3>
+                                          <span className={`badge ${getStatusBadge(complaint.status)}`}>
+                                              {complaint.status}
+                                          </span>
+                                          <span className={`badge ${getCategoryBadge(complaint.category)}`}>
+                                              {complaint.category}
+                                          </span>
+                                          {complaint.priority === 'HIGH' && (
+                                              <span className="badge bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400">🔴 High</span>
+                                          )}
+                                      </div>
+                                      <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 line-clamp-2">
+                                          {complaint.description}
+                                      </p>
+                                      <div className="flex items-center gap-3 mt-2 text-xs text-gray-500 dark:text-gray-400 flex-wrap">
+                                          <span>👤 {complaint.createdBy}</span>
+                                          <span>📅 {complaint.createdAt}</span>
+                                          {complaint.assignedTo && <span>📌 Assigned to: {complaint.assignedTo}</span>}
+                                          <span>💬 {complaint.comments?.length || 0} comments</span>
+                                      </div>
+                                  </div>
+                                  <div className="flex gap-2 ml-4 flex-shrink-0">
+                                      <button onClick={(e) => { e.stopPropagation(); setSelectedComplaint(complaint); setShowDetailModal(true); }}
+                                          className="text-blue-500 hover:text-blue-600 text-sm">👁️ View</button>
+                                  </div>
+                              </div>
+                          </div>
+                      ))}
+                      {filteredComplaints.length === 0 && (
+                          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                              No complaints found.
+                          </div>
+                      )}
+                  </div>
+
+                  {/* Create Complaint Modal */}
+                  {showComplaintModal && (
+                      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay">
+                          <div className="modal-content">
+                              <div className="flex justify-between items-center mb-4">
+                                  <h2 className="text-xl font-bold text-gray-800 dark:text-white">📝 Raise Complaint</h2>
+                                  <button onClick={() => setShowComplaintModal(false)} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 text-2xl">×</button>
+                              </div>
+                              <form onSubmit={handleCreateComplaint}>
+                                  <div className="mb-3">
+                                      <label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Title *</label>
+                                      <input type="text" value={complaintForm.title} onChange={(e) => setComplaintForm({...complaintForm, title: e.target.value})} className="input-field" required />
+                                  </div>
+                                  <div className="mb-3">
+                                      <label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Description *</label>
+                                      <textarea value={complaintForm.description} onChange={(e) => setComplaintForm({...complaintForm, description: e.target.value})} rows="3" className="input-field" required />
+                                  </div>
+                                  <div className="mb-3">
+                                      <label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Category</label>
+                                      <select value={complaintForm.category} onChange={(e) => setComplaintForm({...complaintForm, category: e.target.value})} className="input-field">
+                                          {complaintCategories.filter(c => c !== 'All').map(cat => <option key={cat} value={cat}>{cat}</option>)}
+                                      </select>
+                                  </div>
+                                  <div className="mb-3">
+                                      <label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Priority</label>
+                                      <select value={complaintForm.priority} onChange={(e) => setComplaintForm({...complaintForm, priority: e.target.value})} className="input-field">
+                                          <option value="HIGH">High</option>
+                                          <option value="MEDIUM">Medium</option>
+                                          <option value="LOW">Low</option>
+                                      </select>
+                                  </div>
+                                  <button type="submit" disabled={loading} className="w-full btn-primary">{loading ? 'Submitting...' : 'Submit Complaint'}</button>
+                              </form>
+                          </div>
+                      </div>
+                  )}
+
+                  {/* Complaint Detail Modal */}
+                  {showDetailModal && selectedComplaint && (
+                      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay">
+                          <div className="modal-content max-w-2xl">
+                              <div className="flex justify-between items-center mb-4">
+                                  <h2 className="text-xl font-bold text-gray-800 dark:text-white">📋 Complaint Details</h2>
+                                  <button onClick={() => { setShowDetailModal(false); setSelectedComplaint(null); }}
+                                      className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 text-2xl">×</button>
+                              </div>
+                              <div className="space-y-4">
+                                  <div>
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                          <span className="text-2xl">{categoryIcons[selectedComplaint.category] || '📋'}</span>
+                                          <h3 className="text-lg font-bold text-gray-800 dark:text-white">{selectedComplaint.title}</h3>
+                                          <span className={`badge ${getStatusBadge(selectedComplaint.status)}`}>
+                                              {selectedComplaint.status}
+                                          </span>
+                                          <span className={`badge ${getCategoryBadge(selectedComplaint.category)}`}>
+                                              {selectedComplaint.category}
+                                          </span>
+                                      </div>
+                                      <div className="flex items-center gap-3 mt-2 text-sm text-gray-500 dark:text-gray-400 flex-wrap">
+                                          <span>👤 {selectedComplaint.createdBy}</span>
+                                          <span>📅 {selectedComplaint.createdAt}</span>
+                                          {selectedComplaint.assignedTo && <span>📌 Assigned to: {selectedComplaint.assignedTo}</span>}
+                                      </div>
+                                      <div className="mt-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                          <p className="text-gray-700 dark:text-gray-300">{selectedComplaint.description}</p>
+                                      </div>
+                                  </div>
+
+                                  {/* Status Update (Admin/Faculty only) */}
+                                  {(role === 'ADMIN' || role === 'FACULTY') && (
+                                      <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
+                                          <label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Update Status</label>
+                                          <div className="flex gap-2">
+                                              <select value={updateStatus} onChange={(e) => setUpdateStatus(e.target.value)}
+                                                  className="input-field flex-1">
+                                                  {statusOptions.filter(s => s !== 'All').map(status =>
+                                                      <option key={status} value={status}>{status}</option>
+                                                  )}
+                                              </select>
+                                              <button onClick={() => handleUpdateStatus(selectedComplaint.id, updateStatus)}
+                                                  className="btn-primary" disabled={loading}>
+                                                  Update
+                                              </button>
+                                          </div>
+                                      </div>
+                                  )}
+
+                                  {/* Comments */}
+                                  <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
+                                      <h4 className="font-semibold text-gray-800 dark:text-white mb-2">💬 Comments</h4>
+                                      <div className="space-y-2 max-h-40 overflow-y-auto scrollable">
+                                          {selectedComplaint.comments?.map(comment => (
+                                              <div key={comment.id} className="p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                                  <div className="flex justify-between">
+                                                      <span className="font-semibold text-sm text-gray-800 dark:text-white">{comment.user}</span>
+                                                      <span className="text-xs text-gray-500 dark:text-gray-400">{comment.createdAt}</span>
+                                                  </div>
+                                                  <p className="text-sm text-gray-600 dark:text-gray-300">{comment.text}</p>
+                                              </div>
+                                          ))}
+                                          {(!selectedComplaint.comments || selectedComplaint.comments.length === 0) && (
+                                              <div className="text-center text-gray-500 dark:text-gray-400 text-sm py-2">No comments yet</div>
+                                          )}
+                                      </div>
+                                      <div className="flex gap-2 mt-2">
+                                          <input type="text" value={commentText} onChange={(e) => setCommentText(e.target.value)}
+                                              placeholder="Add a comment..." className="input-field flex-1" />
+                                          <button onClick={() => handleAddComment(selectedComplaint.id)}
+                                              className="btn-primary" disabled={loading || !commentText.trim()}>
+                                              Post
+                                          </button>
+                                      </div>
+                                  </div>
+                              </div>
+                          </div>
+                      </div>
+                  )}
+              </div>
+          );
+      };
+
+      const renderManageComplaints = () => (
+          <div>
+              <div className="welcome-gradient rounded-2xl p-6 text-white mb-6 shadow-lg">
+                  <h2 className="text-2xl font-bold welcome-text">⚙️ Manage Complaints</h2>
+                  <p className="welcome-sub text-sm">View and manage all complaints across the campus</p>
+              </div>
+
+              <div className="card-modern overflow-x-auto">
+                  <table className="w-full">
+                      <thead className="table-header">
+                          <tr>
+                              <th className="px-4 py-3 text-left text-sm font-semibold table-header-text">ID</th>
+                              <th className="px-4 py-3 text-left text-sm font-semibold table-header-text">Title</th>
+                              <th className="px-4 py-3 text-left text-sm font-semibold table-header-text">Category</th>
+                              <th className="px-4 py-3 text-left text-sm font-semibold table-header-text">Status</th>
+                              <th className="px-4 py-3 text-left text-sm font-semibold table-header-text">Assigned To</th>
+                              <th className="px-4 py-3 text-left text-sm font-semibold table-header-text">Actions</th>
+                          </tr>
+                      </thead>
+                      <tbody>
+                          {complaints.map(complaint => (
+                              <tr key={complaint.id} className="border-t table-border row-hover">
+                                  <td className="px-4 py-3 table-cell font-mono">#{complaint.id}</td>
+                                  <td className="px-4 py-3 table-cell">{complaint.title}</td>
+                                  <td className="px-4 py-3"><span className={`badge ${getCategoryBadge(complaint.category)}`}>{complaint.category}</span></td>
+                                  <td className="px-4 py-3"><span className={`badge ${getStatusBadge(complaint.status)}`}>{complaint.status}</span></td>
+                                  <td className="px-4 py-3 table-cell">{complaint.assignedTo || 'Unassigned'}</td>
+                                  <td className="px-4 py-3">
+                                      <button onClick={() => { setSelectedComplaint(complaint); setShowDetailModal(true); }}
+                                          className="btn-primary text-sm py-1 px-3">View</button>
+                                  </td>
+                              </tr>
+                          ))}
+                          {complaints.length === 0 && (
+                              <tr>
+                                  <td colSpan="6" className="text-center py-8 text-gray-500 dark:text-gray-400">
+                                      No complaints found.
+                                  </td>
+                              </tr>
+                          )}
+                      </tbody>
+                  </table>
+              </div>
+          </div>
+      );
+
+      const renderMyComplaints = () => {
+          const userComplaints = complaints.filter(c => c.createdById === userId);
+          return (
+              <div>
+                  <div className="welcome-gradient rounded-2xl p-6 text-white mb-6 shadow-lg">
+                      <div className="flex justify-between items-center flex-wrap gap-3">
+                          <div>
+                              <h2 className="text-2xl font-bold welcome-text">📋 My Complaints</h2>
+                              <p className="welcome-sub text-sm">Track your submitted complaints</p>
+                          </div>
+                          <button onClick={() => setShowComplaintModal(true)} className="btn-primary bg-white/20 hover:bg-white/30 text-white border border-white/30">
+                              + Raise Complaint
+                          </button>
+                      </div>
+                  </div>
+
+                  <div className="space-y-4">
+                      {userComplaints.map(complaint => (
+                          <div key={complaint.id} className="card-modern hover:shadow-md transition-shadow cursor-pointer"
+                              onClick={() => { setSelectedComplaint(complaint); setShowDetailModal(true); }}>
+                              <div className="flex justify-between items-start">
+                                  <div className="flex-1">
+                                      <div className="flex items-center gap-2 flex-wrap">
+                                          <span className="text-xl">{categoryIcons[complaint.category] || '📋'}</span>
+                                          <h3 className="font-bold text-gray-800 dark:text-white">{complaint.title}</h3>
+                                          <span className={`badge ${getStatusBadge(complaint.status)}`}>
+                                              {complaint.status}
+                                          </span>
+                                          <span className={`badge ${getCategoryBadge(complaint.category)}`}>
+                                              {complaint.category}
+                                          </span>
+                                      </div>
+                                      <p className="text-sm text-gray-600 dark:text-gray-300 mt-1 line-clamp-2">
+                                          {complaint.description}
+                                      </p>
+                                      <div className="flex items-center gap-3 mt-2 text-xs text-gray-500 dark:text-gray-400 flex-wrap">
+                                          <span>📅 {complaint.createdAt}</span>
+                                          <span>💬 {complaint.comments?.length || 0} comments</span>
+                                      </div>
+                                  </div>
+                                  <div className="flex gap-2 ml-4 flex-shrink-0">
+                                      <button onClick={(e) => { e.stopPropagation(); setSelectedComplaint(complaint); setShowDetailModal(true); }}
+                                          className="text-blue-500 hover:text-blue-600 text-sm">👁️ View</button>
+                                  </div>
+                              </div>
+                          </div>
+                      ))}
+                      {userComplaints.length === 0 && (
+                          <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                              No complaints submitted yet.
+                          </div>
+                      )}
+                  </div>
+              </div>
+          );
+      };
+
+      const renderContent = () => {
+          switch(activeTab) {
+              case 'dashboard': return renderDashboard();
+              case 'mycomplaints': return renderMyComplaints();
+              case 'manage': return renderManageComplaints();
+              default: return renderDashboard();
+          }
+      };
+
+      // ==================== SIDEBAR ====================
+      const Sidebar = () => (
+          <div className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''} ${isSidebarOpen ? 'open' : ''}`}>
+              <div className="sidebar-header">
+                  <span className="logo-text">📋 Complaints</span>
+                  <button className="sidebar-toggle-btn" onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}>
+                      {isSidebarCollapsed ? '☰' : '◀'}
+                  </button>
+              </div>
+
+              <div className="sidebar-menu">
+                  <div className="sidebar-menu-title">Complaints</div>
+                  {getMenuItems().map(item => (
+                      <button
+                          key={item.id}
+                          className={`sidebar-item ${activeTab === item.id ? 'active' : ''}`}
+                          onClick={() => { setActiveTab(item.id); setIsSidebarOpen(false); }}
+                      >
+                          <span className="icon">{item.icon}</span>
+                          <span className="sidebar-label">{item.label}</span>
+                      </button>
+                  ))}
+                  <div className="sidebar-menu-title mt-4">Dashboard</div>
+                  <button className="sidebar-item" onClick={() => { window.location.href = 'index.html'; }}>
+                      <span className="icon">🏠</span>
+                      <span className="sidebar-label">Back to Dashboard</span>
+                  </button>
+                  <button className="sidebar-item" onClick={() => { window.location.href = 'library.html'; }}>
+                      <span className="icon">📚</span>
+                      <span className="sidebar-label">Library</span>
+                  </button>
+              </div>
+
+              <div className="sidebar-footer">
+                  <div className="sidebar-user">
+                      <div className="sidebar-user-avatar">{name.charAt(0).toUpperCase()}</div>
+                      <div className="sidebar-user-info">
+                          <div className="sidebar-user-name">{name}</div>
+                          <div className="sidebar-user-role">{role}</div>
+                      </div>
+                  </div>
+                  <button className="sidebar-logout" onClick={handleLogout}>
+                      <span className="icon">🚪</span>
+                      <span className="sidebar-logout-text">Logout</span>
+                  </button>
+                  <button className="sidebar-logout mt-1" onClick={toggleTheme}>
+                      <span className="icon">{isDarkMode ? '☀️' : '🌙'}</span>
+                      <span className="sidebar-logout-text">{isDarkMode ? 'Light' : 'Dark'}</span>
+                  </button>
+              </div>
+          </div>
+      );
+
+      // ==================== MAIN RENDER ====================
+      if (!isLoggedIn) {
+          return <LoginPage onLogin={handleLogin} />;
+      }
+
+      return (
+          <div className={`${isDarkMode ? 'dark' : ''}`}>
+              <button className="sidebar-toggle-mobile" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
+                  ☰
+              </button>
+              <div className={`sidebar-overlay ${isSidebarOpen ? 'active' : ''}`} onClick={() => setIsSidebarOpen(false)} />
+              <Sidebar />
+              <div className="main-content">
+                  {renderContent()}
+              </div>
+          </div>
+      );
+  }
+
+  ReactDOM.render(<App />, document.getElementById('root'));
+</script>
 </body>
 </html>

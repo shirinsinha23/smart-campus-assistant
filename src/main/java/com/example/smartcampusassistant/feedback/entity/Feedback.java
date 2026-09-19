@@ -34,24 +34,26 @@ public class Feedback {
     private String comment;
 
     @Column(nullable = false)
-    private Integer rating; // 1-5 stars
+    private Integer rating;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private FeedbackCategory category;
 
-    private String subject; // For faculty/course feedback
+    private String subject;
 
-    private Long facultyId; // For faculty feedback
+    private Long facultyId;
 
-    private String courseName; // For course feedback
+    private String courseName;
 
-    private Boolean isAnonymous;
+    @Builder.Default
+    private Boolean isAnonymous = false;
 
     @CreationTimestamp
     @Column(updatable = false)
     private LocalDateTime createdAt;
 
+    @Builder.Default
     @Column(nullable = false)
     private Boolean isActive = true;
 }

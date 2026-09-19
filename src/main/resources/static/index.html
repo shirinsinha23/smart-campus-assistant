@@ -1,10 +1,539 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>$Title$</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Smart Campus · Login</title>
+    <link rel="icon" href="data:,">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; }
+
+        /* Left panel background — animated gradient behind the campus image */
+        .left-panel {
+            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #6366f1 100%);
+            position: relative;
+            overflow: hidden;
+        }
+        .left-panel::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: url('https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1200&q=80');
+            background-size: cover;
+            background-position: center;
+            opacity: 0.25;
+        }
+        .left-panel::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(30,58,138,0.85), rgba(99,102,241,0.75));
+        }
+        .left-content { position: relative; z-index: 2; }
+
+        /* Floating campus icons */
+        .float-icon {
+            position: absolute;
+            opacity: 0.15;
+            font-size: 3.5rem;
+            animation: float 9s ease-in-out infinite;
+            pointer-events: none;
+            z-index: 1;
+        }
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50%      { transform: translateY(-16px) rotate(6deg); }
+        }
+
+        .fade-in { animation: fadeIn 0.35s ease-in; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .otp-input {
+            width: 46px;
+            height: 54px;
+            font-size: 1.4rem;
+            font-weight: 700;
+            text-align: center;
+            border: 2px solid #d1d5db;
+            border-radius: 10px;
+            outline: none;
+            transition: all 0.2s ease;
+            background: white;
+            color: #111827;
+        }
+        .otp-input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 4px rgba(59,130,246,0.15);
+            transform: scale(1.04);
+        }
+        .otp-input.filled {
+            border-color: #22c55e;
+            background: #f0fdf4;
+        }
+        @media (max-width: 480px) {
+            .otp-input { width: 38px; height: 46px; font-size: 1.1rem; }
+        }
+
+        .btn-loading {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            vertical-align: middle;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* Shake animation for wrong OTP */
+        .shake { animation: shake 0.4s ease-in-out; }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-6px); }
+            40%, 80% { transform: translateX(6px); }
+        }
+    </style>
 </head>
 <body>
-$END$
+<div id="root"></div>
+
+<script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    const API_BASE = '/api';
+
+    function LoginPage() {
+        const [step, setStep] = useState('login');       // 'login' | 'otp' | 'success'
+        const [loginId, setLoginId] = useState('');
+        const [email, setEmail] = useState('');
+        const [otp, setOtp] = useState(['', '', '', '', '', '']);
+        const [loading, setLoading] = useState(false);
+        const [message, setMessage] = useState({ text: '', type: '' });
+        const [detectedRole, setDetectedRole] = useState('');
+        const [resendTimer, setResendTimer] = useState(0);
+        const [shake, setShake] = useState(false);
+
+        const otpRefs = useRef([]);
+
+        // Auto-fill last login ID on load
+        useEffect(() => {
+            const savedId = localStorage.getItem('savedLoginId');
+            if (savedId) setLoginId(savedId);
+        }, []);
+
+        // Focus first OTP input when we enter the OTP step
+        useEffect(() => {
+            if (step === 'otp' && otpRefs.current[0]) {
+                otpRefs.current[0].focus();
+            }
+        }, [step]);
+
+        // Resend countdown
+        useEffect(() => {
+            if (resendTimer <= 0) return;
+            const t = setTimeout(() => setResendTimer(resendTimer - 1), 1000);
+            return () => clearTimeout(t);
+        }, [resendTimer]);
+
+        // Detect role from login ID prefix (client-side hint only)
+        useEffect(() => {
+            if (loginId.startsWith('10')) setDetectedRole('Student');
+            else if (loginId.startsWith('20')) setDetectedRole('Faculty');
+            else if (loginId.startsWith('30')) setDetectedRole('Admin');
+            else setDetectedRole('');
+        }, [loginId]);
+
+        const showMessage = (text, type = 'error') => {
+            setMessage({ text, type });
+            setTimeout(() => setMessage({ text: '', type: '' }), 5000);
+        };
+
+        const roleColor = () => {
+            if (detectedRole === 'Student') return { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-300', chip: 'bg-blue-100 text-blue-700' };
+            if (detectedRole === 'Faculty') return { bg: 'bg-purple-50', text: 'text-purple-600', border: 'border-purple-300', chip: 'bg-purple-100 text-purple-700' };
+            if (detectedRole === 'Admin')   return { bg: 'bg-red-50', text: 'text-red-600', border: 'border-red-300', chip: 'bg-red-100 text-red-700' };
+            return { bg: 'bg-gray-50', text: 'text-gray-500', border: 'border-gray-300', chip: 'bg-gray-100 text-gray-600' };
+        };
+        const colors = roleColor();
+
+        // ===== STEP 1: send OTP =====
+        const handleSendOtp = async (e) => {
+            if (e) e.preventDefault();
+            if (!loginId.trim()) {
+                showMessage('Please enter your Login ID');
+                return;
+            }
+            setLoading(true);
+            try {
+                const res = await axios.post(`${API_BASE}/auth/send-otp`, {
+                    loginId: loginId.trim()
+                });
+                setEmail(res.data?.email || '');
+                setStep('otp');
+                setOtp(['', '', '', '', '', '']);
+                setResendTimer(60);
+                showMessage('OTP sent successfully. Valid for 24 hours.', 'success');
+            } catch (err) {
+                const msg = err.response?.data?.message
+                    || err.response?.data?.error
+                    || 'Could not send OTP';
+                showMessage(msg);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        // ===== STEP 2: OTP input =====
+        const handleOtpChange = (index, value) => {
+            const digit = value.replace(/\D/g, '').slice(-1);
+            const next = [...otp];
+            next[index] = digit;
+            setOtp(next);
+
+            if (digit && index < 5) otpRefs.current[index + 1]?.focus();
+            if (digit && index === 5 && next.every(d => d)) {
+                setTimeout(() => handleVerifyOtp(next.join('')), 100);
+            }
+        };
+
+        const handleOtpKeyDown = (index, e) => {
+            if (e.key === 'Backspace' && !otp[index] && index > 0) {
+                otpRefs.current[index - 1]?.focus();
+            }
+            if (e.key === 'ArrowLeft' && index > 0) otpRefs.current[index - 1]?.focus();
+            if (e.key === 'ArrowRight' && index < 5) otpRefs.current[index + 1]?.focus();
+            if (e.key === 'Enter') handleVerifyOtp();
+        };
+
+        const handleOtpPaste = (e) => {
+            e.preventDefault();
+            const pasted = (e.clipboardData.getData('text') || '').replace(/\D/g, '').slice(0, 6);
+            if (!pasted) return;
+            const next = ['', '', '', '', '', ''];
+            pasted.split('').forEach((d, i) => { next[i] = d; });
+            setOtp(next);
+            otpRefs.current[Math.min(pasted.length, 5)]?.focus();
+            if (pasted.length === 6) setTimeout(() => handleVerifyOtp(pasted), 100);
+        };
+
+        // ===== STEP 3: verify =====
+        const handleVerifyOtp = async (code) => {
+            const otpValue = code || otp.join('');
+            if (otpValue.length !== 6) {
+                showMessage('Please enter the full 6-digit OTP');
+                return;
+            }
+            setLoading(true);
+            try {
+                const res = await axios.post(`${API_BASE}/auth/login`, {
+                    loginId: loginId.trim(),
+                    otp: otpValue
+                });
+
+                const { token, name, userId, loginId: lid, email: userEmail, role } = res.data || {};
+                if (!token) {
+                    showMessage('Login failed: no token received');
+                    return;
+                }
+
+                localStorage.setItem('token', token);
+                localStorage.setItem('name', name || 'User');
+                localStorage.setItem('userId', userId || '');
+                localStorage.setItem('loginId', lid || loginId);
+                localStorage.setItem('email', userEmail || email || '');
+                localStorage.setItem('role', role || 'STUDENT');
+                localStorage.setItem('savedLoginId', lid || loginId);
+
+                setStep('success');
+
+                setTimeout(() => {
+                    if (role === 'FACULTY') window.location.href = 'faculty-dashboard.html';
+                    else if (role === 'ADMIN') window.location.href = 'admin-dashboard.html';
+                    else window.location.href = 'student-dashboard.html';
+                }, 800);
+            } catch (err) {
+                const msg = err.response?.data?.message
+                    || err.response?.data?.error
+                    || 'Invalid or expired OTP';
+                showMessage(msg);
+                setOtp(['', '', '', '', '', '']);
+                setShake(true);
+                setTimeout(() => setShake(false), 500);
+                otpRefs.current[0]?.focus();
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        const handleResendOtp = async () => {
+            if (resendTimer > 0) return;
+            setLoading(true);
+            try {
+                await axios.post(`${API_BASE}/auth/send-otp`, { loginId: loginId.trim() });
+                setResendTimer(60);
+                setOtp(['', '', '', '', '', '']);
+                otpRefs.current[0]?.focus();
+                showMessage('The same OTP has been re-sent (valid 24 hours)', 'success');
+            } catch (err) {
+                showMessage('Could not resend OTP');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        const goBack = () => {
+            setStep('login');
+            setOtp(['', '', '', '', '', '']);
+            setDetectedRole('');
+        };
+
+        return (
+            <div className="min-h-screen flex bg-slate-100">
+
+                {/* ================= LEFT PANEL ================= */}
+                <div className="hidden lg:flex lg:w-1/2 xl:w-3/5 left-panel items-center justify-center p-12 relative">
+                    {/* Floating campus icons */}
+                    <span className="float-icon" style={{ top: '12%',  left: '12%', animationDelay: '0s' }}>🎓</span>
+                    <span className="float-icon" style={{ top: '22%',  right: '15%', animationDelay: '1s' }}>📚</span>
+                    <span className="float-icon" style={{ bottom: '18%', left: '18%', animationDelay: '2s' }}>🏛️</span>
+                    <span className="float-icon" style={{ bottom: '12%', right: '20%', animationDelay: '1.5s' }}>🌍</span>
+                    <span className="float-icon" style={{ top: '55%',  left: '8%',  animationDelay: '0.5s' }}>📝</span>
+                    <span className="float-icon" style={{ top: '65%',  right: '10%', animationDelay: '2.5s' }}>🍽️</span>
+
+                    <div className="left-content text-center text-white max-w-md">
+                        <div className="inline-flex items-center justify-center w-24 h-24 bg-white/15 backdrop-blur-md rounded-3xl mb-6 border border-white/30 shadow-2xl">
+                            <span className="text-5xl">🏛️</span>
+                        </div>
+                        <h1 className="text-4xl md:text-5xl font-bold mb-3 drop-shadow-lg">
+                            Smart Campus
+                        </h1>
+                        <p className="text-lg text-white/90 mb-8 leading-relaxed">
+                            Your all-in-one college companion
+                        </p>
+                        <div className="grid grid-cols-2 gap-3 text-left">
+                            {[
+                                { icon: '📚', label: 'Library & Materials' },
+                                { icon: '📝', label: 'Assignments' },
+                                { icon: '🏠', label: 'Hostel & Mess' },
+                                { icon: '🚌', label: 'Transport' },
+                                { icon: '🍽️', label: 'Cafeteria' },
+                                { icon: '💼', label: 'Placement' },
+                            ].map((item, i) => (
+                                <div key={i} className="flex items-center gap-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-3">
+                                    <span className="text-2xl">{item.icon}</span>
+                                    <span className="text-sm font-medium">{item.label}</span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                {/* ================= RIGHT PANEL ================= */}
+                <div className="w-full lg:w-1/2 xl:w-2/5 flex items-center justify-center p-6 sm:p-10">
+                    <div className="w-full max-w-md fade-in">
+
+                        {/* Logo (visible on small screens too) */}
+                        <div className="lg:hidden text-center mb-6">
+                            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl mb-3 shadow-lg">
+                                <span className="text-3xl">🏛️</span>
+                            </div>
+                            <h1 className="text-2xl font-bold text-gray-800">Smart Campus</h1>
+                            <p className="text-sm text-gray-500">Sign in to continue</p>
+                        </div>
+
+                        {/* Header */}
+                        <div className="hidden lg:block mb-8">
+                            <h2 className="text-3xl font-bold text-gray-800">
+                                {step === 'login' && 'Login'}
+                                {step === 'otp' && 'Verify OTP'}
+                                {step === 'success' && 'Welcome!'}
+                            </h2>
+                            <p className="text-sm text-gray-500 mt-2">
+                                {step === 'login' && 'Enter your Login ID to receive a one-time code.'}
+                                {step === 'otp' && 'We\'ve emailed you a 6-digit code. It\'s valid for 24 hours.'}
+                                {step === 'success' && 'Redirecting to your dashboard…'}
+                            </p>
+                        </div>
+
+                        {/* Message banner */}
+                        {message.text && (
+                            <div className={`mb-5 p-3 rounded-lg text-sm border-l-4 ${
+                                message.type === 'success'
+                                    ? 'bg-green-50 border-green-500 text-green-700'
+                                    : 'bg-red-50 border-red-500 text-red-700'
+                            }`}>
+                                {message.text}
+                            </div>
+                        )}
+
+                        {/* ============ STEP 1: LOGIN ============ */}
+                        {step === 'login' && (
+                            <form onSubmit={handleSendOtp}>
+                                <label className="block text-gray-700 font-semibold text-sm mb-2">
+                                    Login ID
+                                </label>
+                                <div className="relative mb-5">
+                                    <span className={`absolute left-3 top-1/2 -translate-y-1/2 text-lg ${colors.text}`}>
+                                        🆔
+                                    </span>
+                                    <input
+                                        type="text"
+                                        value={loginId}
+                                        onChange={(e) => setLoginId(e.target.value)}
+                                        placeholder="Enter your Login ID"
+                                        autoComplete="username"
+                                        autoFocus
+                                        className={`w-full pl-11 pr-4 py-3 border-2 ${colors.border} rounded-xl outline-none text-gray-800 transition focus:border-blue-500 focus:ring-4 focus:ring-blue-100`}
+                                    />
+                                </div>
+
+                                {detectedRole && (
+                                    <div className="mb-5 -mt-3">
+                                        <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${colors.chip}`}>
+                                            Detected: {detectedRole} Login
+                                        </span>
+                                    </div>
+                                )}
+
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="w-full bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white font-semibold py-3 rounded-xl transition-all shadow-lg hover:shadow-xl disabled:opacity-60 disabled:cursor-not-allowed"
+                                >
+                                    {loading
+                                        ? <><span className="btn-loading"></span> <span className="ml-2">Sending OTP…</span></>
+                                        : <>📩 Send OTP</>}
+                                </button>
+
+                                <p className="text-xs text-gray-500 text-center mt-4">
+                                    We'll email you a 6-digit code.<br/>
+                                    It stays valid for <strong>24 hours</strong>.
+                                </p>
+                            </form>
+                        )}
+
+                        {/* ============ STEP 2: OTP ============ */}
+                        {step === 'otp' && (
+                            <div className={shake ? 'shake' : ''}>
+                                <div className="text-center mb-5">
+                                    {detectedRole && (
+                                        <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold mb-3 ${colors.chip}`}>
+                                            {detectedRole} Login
+                                        </span>
+                                    )}
+                                    <p className="text-sm text-gray-600">
+                                        OTP sent for <strong className="text-gray-800">{loginId}</strong>
+                                    </p>
+                                    {email && (
+                                        <p className="text-xs text-gray-500 mt-1">📧 {email}</p>
+                                    )}
+                                    <button
+                                        onClick={goBack}
+                                        className="text-xs text-blue-600 hover:underline mt-2"
+                                    >
+                                        ← change Login ID
+                                    </button>
+                                </div>
+
+                                <label className="block text-gray-700 font-semibold text-sm mb-3 text-center">
+                                    Enter 6-digit OTP
+                                </label>
+
+                                <div className="flex justify-center gap-2 mb-6" onPaste={handleOtpPaste}>
+                                    {otp.map((digit, i) => (
+                                        <input
+                                            key={i}
+                                            ref={(el) => (otpRefs.current[i] = el)}
+                                            type="text"
+                                            inputMode="numeric"
+                                            maxLength="1"
+                                            value={digit}
+                                            onChange={(e) => handleOtpChange(i, e.target.value)}
+                                            onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                                            className={`otp-input ${digit ? 'filled' : ''}`}
+                                        />
+                                    ))}
+                                </div>
+
+                                <button
+                                    onClick={() => handleVerifyOtp()}
+                                    disabled={loading || otp.some(d => !d)}
+                                    className="w-full bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white font-semibold py-3 rounded-xl transition-all shadow-lg hover:shadow-xl disabled:opacity-60 disabled:cursor-not-allowed"
+                                >
+                                    {loading
+                                        ? <><span className="btn-loading"></span> <span className="ml-2">Verifying…</span></>
+                                        : <>✅ Verify &amp; Login</>}
+                                </button>
+
+                                <div className="text-center mt-4 text-sm">
+                                    {resendTimer > 0 ? (
+                                        <p className="text-gray-500">
+                                            Resend OTP in <strong>{resendTimer}s</strong>
+                                        </p>
+                                    ) : (
+                                        <button
+                                            onClick={handleResendOtp}
+                                            disabled={loading}
+                                            className="text-blue-600 hover:underline font-semibold"
+                                        >
+                                            🔄 Resend OTP
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* ============ STEP 3: SUCCESS ============ */}
+                        {step === 'success' && (
+                            <div className="text-center py-8">
+                                <div className="text-6xl mb-4">✅</div>
+                                <h2 className="text-xl font-bold text-gray-800">Login successful!</h2>
+                                <p className="text-sm text-gray-500 mt-2">Redirecting to your dashboard…</p>
+                                <div className="mt-6 flex justify-center">
+                                    <span className="btn-loading" style={{ borderTopColor: '#3b82f6', borderColor: 'rgba(59,130,246,0.2)' }}></span>
+                                </div>
+                            </div>
+                        )}
+
+                        <p className="text-center text-gray-400 text-xs mt-8">
+                            © 2026 Smart Campus · All rights reserved
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    ReactDOM.render(<LoginPage />, document.getElementById('root'));
+</script>
 </body>
 </html>

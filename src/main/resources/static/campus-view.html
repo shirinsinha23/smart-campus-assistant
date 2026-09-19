@@ -1,10 +1,774 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>$Title$</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>🌍 Campus 360° View · Smart Campus</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.css"/>
+    <script src="https://cdn.jsdelivr.net/npm/pannellum@2.5.6/build/pannellum.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f1f5f9; }
+        .dark body { background: #0b1120; }
+        .sidebar { position: fixed; left: 0; top: 0; height: 100vh; width: 260px; background: #0f172a; color: #e2e8f0; z-index: 1000; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; box-shadow: 4px 0 20px rgba(0,0,0,0.3); }
+        .sidebar::-webkit-scrollbar { width: 4px; }
+        .sidebar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        .sidebar.collapsed { width: 72px; }
+        .sidebar.collapsed .sidebar-label, .sidebar.collapsed .sidebar-user-name, .sidebar.collapsed .sidebar-user-role, .sidebar.collapsed .sidebar-logout-text { display: none; }
+        .sidebar.collapsed .sidebar-item { justify-content: center; padding: 12px; }
+        .sidebar.collapsed .sidebar-item .icon { margin-right: 0; font-size: 1.5rem; }
+        .sidebar.collapsed .sidebar-header .logo-text { display: none; }
+        .sidebar-header { padding: 18px 20px; border-bottom: 1px solid #1e293b; display: flex; align-items: center; justify-content: space-between; min-height: 68px; }
+        .sidebar-header .logo-text { font-size: 1.2rem; font-weight: 700; background: linear-gradient(135deg, #60a5fa, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; white-space: nowrap; }
+        .sidebar-toggle-btn { background: transparent; border: none; color: #94a3b8; font-size: 1.2rem; cursor: pointer; padding: 4px 8px; border-radius: 6px; transition: 0.2s; }
+        .sidebar-toggle-btn:hover { background: #1e293b; color: white; }
+        .sidebar-menu { flex: 1; padding: 12px 10px; }
+        .sidebar-menu-title { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; padding: 12px 12px 6px; font-weight: 600; }
+        .sidebar.collapsed .sidebar-menu-title { display: none; }
+        .sidebar-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 10px; cursor: pointer; transition: all 0.2s ease; color: #94a3b8; font-size: 0.875rem; font-weight: 500; width: 100%; border: none; background: transparent; text-align: left; white-space: nowrap; overflow: hidden; text-decoration: none; }
+        .sidebar-item:hover { background: rgba(255,255,255,0.06); color: #f1f5f9; }
+        .sidebar-item.active { background: #3b82f6; color: white; box-shadow: 0 4px 12px rgba(59,130,246,0.3); }
+        .sidebar-item .icon { font-size: 1.2rem; min-width: 28px; text-align: center; }
+        .sidebar-item .sidebar-label { flex: 1; }
+        .sidebar-footer { padding: 16px 14px; border-top: 1px solid #1e293b; margin-top: auto; }
+        .sidebar-user { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,0.04); }
+        .sidebar-user-avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6, #8b5cf6); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem; color: white; flex-shrink: 0; }
+        .sidebar-user-name { font-size: 0.875rem; font-weight: 600; color: #f1f5f9; }
+        .sidebar-user-role { font-size: 0.65rem; color: #94a3b8; text-transform: uppercase; }
+        .sidebar-logout { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 10px; cursor: pointer; transition: all 0.2s ease; color: #94a3b8; border: none; background: transparent; width: 100%; font-size: 0.875rem; margin-top: 6px; }
+        .sidebar-logout:hover { background: rgba(239,68,68,0.15); color: #ef4444; }
+        .main-content { margin-left: 260px; min-height: 100vh; background: #f1f5f9; padding: 24px; transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .sidebar.collapsed ~ .main-content { margin-left: 72px; }
+        .dark .sidebar { background: #0b1120; }
+        .dark .sidebar-header { border-color: #1e293b; }
+        .dark .sidebar-footer { border-color: #1e293b; }
+        .dark .sidebar-item:hover { background: rgba(255,255,255,0.04); }
+        .dark .sidebar-item.active { background: #2563eb; }
+        .dark .main-content { background: #0b1120; }
+        .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 999; }
+        .sidebar-overlay.active { display: block; }
+        @media (max-width: 768px) { .sidebar { transform: translateX(-100%); width: 280px; } .sidebar.open { transform: translateX(0); } .sidebar.collapsed { width: 280px; } .sidebar.collapsed .sidebar-label, .sidebar.collapsed .sidebar-user-name, .sidebar.collapsed .sidebar-user-role { display: block; } .sidebar.collapsed .sidebar-item { justify-content: flex-start; padding: 10px 14px; } .sidebar.collapsed .sidebar-header .logo-text { display: block; } .main-content { margin-left: 0; padding-top: 16px; } .sidebar.collapsed ~ .main-content { margin-left: 0; } .sidebar-toggle-mobile { display: block !important; position: fixed; top: 12px; left: 12px; z-index: 1001; background: #0f172a; color: white; border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 1.2rem; box-shadow: 0 4px 12px rgba(0,0,0,0.3); } .dark .sidebar-toggle-mobile { background: #0b1120; } }
+        .sidebar-toggle-mobile { display: none; }
+
+        .map-container { width: 100%; height: 500px; border-radius: 16px; overflow: hidden; position: relative; }
+        #map { width: 100%; height: 100%; }
+        .view-toggle { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); display: flex; gap: 12px; z-index: 10; background: rgba(0,0,0,0.7); padding: 10px 20px; border-radius: 50px; backdrop-filter: blur(10px); }
+        .view-toggle button { padding: 8px 20px; border-radius: 25px; border: none; cursor: pointer; font-weight: 600; transition: all 0.3s; color: white; background: rgba(255,255,255,0.1); }
+        .view-toggle button:hover { transform: scale(1.05); }
+        .view-toggle button.active { background: #3b82f6; box-shadow: 0 4px 15px rgba(59,130,246,0.4); }
+        .location-selector { position: absolute; top: 20px; right: 20px; z-index: 10; background: rgba(0,0,0,0.7); padding: 12px 16px; border-radius: 12px; backdrop-filter: blur(10px); color: white; min-width: 180px; }
+        .location-selector select { width: 100%; padding: 6px 10px; border-radius: 8px; background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); outline: none; }
+        .location-selector select option { background: #1a1a2e; color: white; }
+        .card-modern { background: #ffffff; border-radius: 16px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid #e5e7eb; transition: all 0.3s ease; }
+        .dark .card-modern { background: #182235; border-color: #253450; }
+        .welcome-gradient { background: linear-gradient(135deg, #1e3a5f 0%, #4a90d9 50%, #6b9bff 100%); }
+        .dark .welcome-gradient { background: linear-gradient(135deg, #0b1a2e 0%, #1a3a5f 50%, #2a4a7a 100%); }
+        #panorama { width: 100%; height: 500px; border-radius: 16px; display: none; }
+
+        .location-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-top: 16px; }
+        .location-card { padding: 12px 16px; border-radius: 12px; cursor: pointer; transition: all 0.3s; text-align: center; background: #f1f5f9; border: 2px solid transparent; }
+        .dark .location-card { background: #1e293b; }
+        .location-card:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .location-card.active { border-color: #3b82f6; background: #dbeafe; }
+        .dark .location-card.active { border-color: #60a5fa; background: #1a2a5a; }
+        .location-card .emoji { font-size: 1.8rem; display: block; }
+        .location-card .name { font-weight: 600; font-size: 0.85rem; margin-top: 4px; }
+
+        .panorama-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; background: linear-gradient(135deg, #1e3a5f, #4a90d9); color: white; }
+        .panorama-placeholder .emoji { font-size: 4rem; margin-bottom: 16px; }
+        .panorama-placeholder p { font-size: 1.1rem; opacity: 0.8; }
+
+        .facility-detail {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+        .facility-detail img {
+            width: 280px;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 12px;
+            flex-shrink: 0;
+        }
+        .facility-detail .info {
+            flex: 1;
+            min-width: 200px;
+        }
+        @media (max-width: 600px) {
+            .facility-detail { flex-direction: column; }
+            .facility-detail img { width: 100%; height: 180px; }
+        }
+
+        .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 9999; padding: 16px; }
+        .modal-content { background: white; border-radius: 16px; padding: 24px; max-width: 720px; width: 100%; max-height: 90vh; overflow-y: auto; }
+        .dark .modal-content { background: #182235; }
+
+        .you-marker { animation: pulse-red 1.8s infinite; }
+        @keyframes pulse-red {
+            0%   { filter: drop-shadow(0 0 0 rgba(239,68,68,0.7)); }
+            70%  { filter: drop-shadow(0 0 12px rgba(239,68,68,0.4)); }
+            100% { filter: drop-shadow(0 0 0 rgba(239,68,68,0)); }
+        }
+    </style>
 </head>
 <body>
-$END$
+<div id="root"></div>
+
+<script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = 'index.html';
+    }
+
+    const name = localStorage.getItem('name') || 'User';
+    const role = localStorage.getItem('role') || 'STUDENT';
+
+    const CAMPUS_LOCATIONS = [
+        {
+            id: 'main-gate',
+            name: 'Main Gate',
+            emoji: '🏛️',
+            lat: 28.6139,
+            lng: 77.2090,
+            description: 'Main entrance of campus with 24/7 security and visitor registration desk.',
+            image: 'https://images.unsplash.com/photo-1568667256549-094345857637?w=600&h=400&fit=crop',
+            facilities: ['Security Desk', 'Visitor Registration', 'CCTV Surveillance', 'Parking'],
+            timing: '24/7 Open',
+            contact: '+91 98765 43200'
+        },
+        {
+            id: 'academic',
+            name: 'Academic Block',
+            emoji: '📚',
+            lat: 28.6145,
+            lng: 77.2100,
+            description: 'Main academic building with 40+ classrooms, seminar halls, and faculty offices.',
+            image: 'https://images.unsplash.com/photo-1562774053-701939374585?w=600&h=400&fit=crop',
+            facilities: ['40+ Classrooms', 'Smart Boards', 'Faculty Offices', 'Seminar Halls', 'Wi-Fi'],
+            timing: '8:00 AM - 6:00 PM',
+            contact: '+91 98765 43201'
+        },
+        {
+            id: 'library',
+            name: 'Central Library',
+            emoji: '📖',
+            lat: 28.6150,
+            lng: 77.2085,
+            description: 'State-of-the-art library with 50,000+ books, journals, and digital resources.',
+            image: 'https://images.unsplash.com/photo-1521587760476-6c12a4b040da?w=600&h=400&fit=crop',
+            facilities: ['50,000+ Books', 'Digital Library', 'Reading Rooms', 'Wi-Fi', 'Printing'],
+            timing: '8:00 AM - 10:00 PM',
+            contact: '+91 98765 43202'
+        },
+        {
+            id: 'cafeteria',
+            name: 'Cafeteria',
+            emoji: '🍽️',
+            lat: 28.6140,
+            lng: 77.2110,
+            description: 'Multi-cuisine cafeteria with 8 restaurants and 48+ menu items.',
+            image: 'https://images.unsplash.com/photo-1567521464027-f127ff144326?w=600&h=400&fit=crop',
+            facilities: ['8 Restaurants', '48+ Menu Items', 'Veg & Non-Veg', 'Seating 500+', 'Wi-Fi'],
+            timing: '7:00 AM - 11:00 PM',
+            contact: '+91 98765 43203'
+        },
+        {
+            id: 'hostel',
+            name: 'Hostel Complex',
+            emoji: '🏠',
+            lat: 28.6160,
+            lng: 77.2070,
+            description: 'Separate boys and girls hostels with modern amenities and 24/7 security.',
+            image: 'https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=600&h=400&fit=crop',
+            facilities: ['Boys & Girls Hostels', 'AC/Non-AC Rooms', 'Mess Facility', 'Wi-Fi', 'Warden'],
+            timing: '24/7 Access',
+            contact: '+91 98765 43204'
+        },
+        {
+            id: 'sports',
+            name: 'Sports Complex',
+            emoji: '⚽',
+            lat: 28.6130,
+            lng: 77.2120,
+            description: 'Indoor and outdoor sports facilities including cricket, football, basketball, and gym.',
+            image: 'https://images.unsplash.com/photo-1546519638-68e109498ffc?w=600&h=400&fit=crop',
+            facilities: ['Cricket Ground', 'Football Field', 'Basketball Court', 'Gym', 'Indoor Games'],
+            timing: '6:00 AM - 9:00 PM',
+            contact: '+91 98765 43205'
+        },
+        {
+            id: 'auditorium',
+            name: 'Auditorium',
+            emoji: '🎭',
+            lat: 28.6155,
+            lng: 77.2095,
+            description: 'Main event hall with 1000+ seating capacity, professional sound and lighting.',
+            image: 'https://images.unsplash.com/photo-1524178232363-1fb2b075b655?w=600&h=400&fit=crop',
+            facilities: ['1000+ Seats', 'Professional Sound', 'Stage Lighting', 'AC', 'Parking'],
+            timing: 'As per events',
+            contact: '+91 98765 43206'
+        },
+        {
+            id: 'admin',
+            name: 'Admin Block',
+            emoji: '👨‍💼',
+            lat: 28.6165,
+            lng: 77.2105,
+            description: 'Administrative offices including Principal, Registrar, Accounts, and Admissions.',
+            image: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&h=400&fit=crop',
+            facilities: ['Principal Office', 'Registrar', 'Accounts', 'Admissions', 'HR'],
+            timing: '9:00 AM - 5:00 PM',
+            contact: '+91 98765 43207'
+        }
+    ];
+
+    function CampusView() {
+        const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
+        const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+        const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+        const [viewType, setViewType] = useState('map');
+        const [selectedLocation, setSelectedLocation] = useState(CAMPUS_LOCATIONS[1]);
+        const [showDetailModal, setShowDetailModal] = useState(false);
+        const [detailLocation, setDetailLocation] = useState(null);
+
+        // Live location state
+        const [userLocation, setUserLocation] = useState(null);
+        const [userLocationError, setUserLocationError] = useState('');
+        const [userLocationLoading, setUserLocationLoading] = useState(false);
+        const [nearbyFacilities, setNearbyFacilities] = useState([]);
+        const [useLiveLocation, setUseLiveLocation] = useState(false);
+        const userMarkerRef = useRef(null);
+
+        const mapInstanceRef = useRef(null);
+
+        // Initialize map
+        useEffect(() => {
+            if (!mapInstanceRef.current) {
+                const map = L.map('map', { zoomControl: true }).setView([selectedLocation.lat, selectedLocation.lng], 17);
+
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+                    maxZoom: 19
+                }).addTo(map);
+
+                const createMarkerIcon = (color = '#3b82f6') => {
+                    return L.divIcon({
+                        className: 'custom-marker',
+                        html: `<div style="background:${color};width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 2px 10px rgba(0,0,0,0.3);"></div>`,
+                        iconSize: [16, 16],
+                        iconAnchor: [8, 8]
+                    });
+                };
+
+                const colors = ['#3b82f6', '#8b5cf6', '#22c55e', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#f97316'];
+
+                CAMPUS_LOCATIONS.forEach((loc, index) => {
+                    const marker = L.marker([loc.lat, loc.lng], {
+                        icon: createMarkerIcon(colors[index % colors.length])
+                    }).addTo(map);
+
+                    marker.bindPopup(`
+                        <div style="padding:6px;min-width:200px;font-family:inherit;">
+                            <img src="${loc.image}" alt="${loc.name}"
+                                 style="width:100%;height:100px;object-fit:cover;border-radius:8px;margin-bottom:8px;"
+                                 onerror="this.style.display='none'"/>
+                            <div style="font-size:1.3rem;text-align:center;">${loc.emoji}</div>
+                            <div style="font-weight:bold;text-align:center;margin:4px 0;font-size:14px;">${loc.name}</div>
+                            <div style="font-size:0.75rem;text-align:center;color:#6b7280;margin-bottom:8px;">${loc.description.substring(0, 60)}...</div>
+                            <button onclick="window.openDetail('${loc.id}')"
+                                    style="width:100%;padding:8px;background:#3b82f6;color:white;border:none;border-radius:6px;cursor:pointer;font-weight:600;">
+                                🔍 View Details
+                            </button>
+                        </div>
+                    `);
+
+                    marker.on('click', () => setSelectedLocation(loc));
+                });
+
+                mapInstanceRef.current = map;
+
+                window.openDetail = (id) => {
+                    const loc = CAMPUS_LOCATIONS.find(l => l.id === id);
+                    if (loc) {
+                        setDetailLocation(loc);
+                        setShowDetailModal(true);
+                    }
+                };
+            }
+
+            return () => {
+                if (mapInstanceRef.current) {
+                    mapInstanceRef.current.remove();
+                    mapInstanceRef.current = null;
+                }
+            };
+        }, []);
+
+        // Pan to selected location
+        useEffect(() => {
+            if (mapInstanceRef.current && selectedLocation) {
+                mapInstanceRef.current.panTo([selectedLocation.lat, selectedLocation.lng]);
+                mapInstanceRef.current.setZoom(18);
+            }
+        }, [selectedLocation]);
+
+        // Live "You are here" marker
+        useEffect(() => {
+            if (!mapInstanceRef.current || !userLocation) return;
+            const map = mapInstanceRef.current;
+
+            const youIcon = L.divIcon({
+                className: 'you-marker',
+                html: `<div style="background:#ef4444;width:18px;height:18px;border-radius:50%;border:3px solid white;box-shadow:0 0 0 6px rgba(239,68,68,0.3);"></div>`,
+                iconSize: [18, 18],
+                iconAnchor: [9, 9]
+            });
+
+            if (userMarkerRef.current) {
+                userMarkerRef.current.setLatLng([userLocation.lat, userLocation.lng]);
+            } else {
+                userMarkerRef.current = L.marker([userLocation.lat, userLocation.lng], { icon: youIcon })
+                    .addTo(map)
+                    .bindPopup('<b>📍 You are here</b>');
+            }
+
+            map.setView([userLocation.lat, userLocation.lng], 18);
+        }, [userLocation]);
+
+        // Handle view type change
+        useEffect(() => {
+            const mapEl = document.getElementById('map');
+            const panoEl = document.getElementById('panorama');
+            if (!mapEl || !panoEl) return;
+
+            if (viewType === 'map') {
+                mapEl.style.display = 'block';
+                panoEl.style.display = 'none';
+                if (mapInstanceRef.current) {
+                    setTimeout(() => mapInstanceRef.current.invalidateSize(), 300);
+                }
+            } else {
+                mapEl.style.display = 'none';
+                panoEl.style.display = 'block';
+                panoEl.innerHTML = `
+                    <div class="panorama-placeholder">
+                        <div class="emoji">${selectedLocation.emoji}</div>
+                        <h3 style="font-size:1.5rem;font-weight:bold;">${selectedLocation.name}</h3>
+                        <p>${selectedLocation.description}</p>
+                        <p style="font-size:0.8rem;margin-top:8px;opacity:0.6;">📸 360° interactive view coming soon</p>
+                    </div>
+                `;
+            }
+        }, [viewType, selectedLocation]);
+
+        useEffect(() => {
+            document.documentElement.classList.toggle('dark', isDarkMode);
+            localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+        }, [isDarkMode]);
+
+        const handleLogout = () => { localStorage.clear(); window.location.href = 'index.html'; };
+        const toggleTheme = () => setIsDarkMode(v => !v);
+
+        const openLocationDetail = (loc) => {
+            setDetailLocation(loc);
+            setShowDetailModal(true);
+        };
+
+        // ===== LIVE LOCATION HELPERS =====
+        const distanceMeters = (lat1, lng1, lat2, lng2) => {
+            const R = 6371000;
+            const toRad = d => d * Math.PI / 180;
+            const dLat = toRad(lat2 - lat1);
+            const dLng = toRad(lng2 - lng1);
+            const a = Math.sin(dLat / 2) ** 2 +
+                      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+                      Math.sin(dLng / 2) ** 2;
+            return Math.round(2 * R * Math.asin(Math.sqrt(a)));
+        };
+
+        const formatDistance = (m) => {
+            if (m < 1000) return `${m} m`;
+            return `${(m / 1000).toFixed(2)} km`;
+        };
+
+        const computeNearbyFacilities = (lat, lng) => {
+            const ranked = CAMPUS_LOCATIONS.map(loc => {
+                const d = distanceMeters(lat, lng, loc.lat, loc.lng);
+                return { ...loc, distance: d, distanceText: formatDistance(d) };
+            }).sort((a, b) => a.distance - b.distance);
+            setNearbyFacilities(ranked);
+        };
+
+        const locateMe = () => {
+            if (!navigator.geolocation) {
+                setUserLocationError('Geolocation is not supported by this browser.');
+                return;
+            }
+            setUserLocationLoading(true);
+            setUserLocationError('');
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    const { latitude, longitude } = pos.coords;
+                    const loc = { lat: latitude, lng: longitude };
+                    setUserLocation(loc);
+                    setUseLiveLocation(true);
+                    computeNearbyFacilities(latitude, longitude);
+                    setUserLocationLoading(false);
+                },
+                (err) => {
+                    setUserLocationError(
+                        err.code === 1
+                            ? 'Location permission denied. Enable it in your browser settings.'
+                            : 'Could not get your location. Try again.'
+                    );
+                    setUserLocationLoading(false);
+                },
+                { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+            );
+        };
+
+        return (
+            <div className={`${isDarkMode ? 'dark' : ''}`}>
+                <button className="sidebar-toggle-mobile" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>☰</button>
+                <div className={`sidebar-overlay ${isSidebarOpen ? 'active' : ''}`} onClick={() => setIsSidebarOpen(false)} />
+
+                <div className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''} ${isSidebarOpen ? 'open' : ''}`}>
+                    <div className="sidebar-header">
+                        <span className="logo-text">🌍 Campus</span>
+                        <button className="sidebar-toggle-btn" onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}>
+                            {isSidebarCollapsed ? '☰' : '◀'}
+                        </button>
+                    </div>
+                    <div className="sidebar-menu">
+                        <div className="sidebar-menu-title">Main</div>
+                        <button className="sidebar-item active">
+                            <span className="icon">🌍</span>
+                            <span className="sidebar-label">Campus View</span>
+                        </button>
+                        <div className="sidebar-menu-title mt-4">Other</div>
+                        <a href={role === 'STUDENT' ? 'student-dashboard.html' : role === 'FACULTY' ? 'faculty-dashboard.html' : 'admin-dashboard.html'} className="sidebar-item">
+                            <span className="icon">🏠</span>
+                            <span className="sidebar-label">Dashboard</span>
+                        </a>
+                    </div>
+                    <div className="sidebar-footer">
+                        <div className="sidebar-user">
+                            <div className="sidebar-user-avatar">{name.charAt(0).toUpperCase()}</div>
+                            <div className="sidebar-user-info">
+                                <div className="sidebar-user-name">{name}</div>
+                                <div className="sidebar-user-role">{role}</div>
+                            </div>
+                        </div>
+                        <button className="sidebar-logout" onClick={handleLogout}>
+                            <span className="icon">🚪</span>
+                            <span className="sidebar-logout-text">Logout</span>
+                        </button>
+                        <button className="sidebar-logout mt-1" onClick={toggleTheme}>
+                            <span className="icon">{isDarkMode ? '☀️' : '🌙'}</span>
+                            <span className="sidebar-logout-text">{isDarkMode ? 'Light' : 'Dark'}</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div className="main-content">
+                    <div className="welcome-gradient rounded-2xl p-6 text-white mb-6 shadow-lg relative overflow-hidden">
+                        <div className="absolute top-0 right-0 opacity-10 text-8xl">🌍</div>
+                        <div className="relative">
+                            <h2 className="text-2xl font-bold">🌍 Campus Navigation</h2>
+                            <p className="text-white/80 text-sm">
+                                {viewType === 'map' ? '🗺️ Interactive campus map — click any marker for details' : '🏙️ 360° campus view'}
+                            </p>
+                            <div className="mt-2 flex gap-2 flex-wrap">
+                                <span className="bg-white/20 px-3 py-1 rounded-full text-xs">{role}</span>
+                                <span className="bg-white/20 px-3 py-1 rounded-full text-xs">{selectedLocation.name}</span>
+                                {useLiveLocation && <span className="bg-green-500/40 px-3 py-1 rounded-full text-xs">📍 Live location ON</span>}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="card-modern p-2 relative">
+                        <div className="map-container">
+                            <div id="map" style={{ display: viewType === 'map' ? 'block' : 'none' }}></div>
+                            <div id="panorama" style={{ display: viewType === 'panorama' ? 'block' : 'none' }}></div>
+
+                            {/* Live location button (top-left) */}
+                            <div className="location-selector" style={{ top: '20px', left: '20px', right: 'unset', minWidth: '220px' }}>
+                                <label className="text-sm font-medium block mb-1">📡 Live Location</label>
+                                <button
+                                    onClick={locateMe}
+                                    disabled={userLocationLoading}
+                                    style={{
+                                        width: '100%',
+                                        padding: '8px 12px',
+                                        borderRadius: '8px',
+                                        background: useLiveLocation ? '#22c55e' : '#3b82f6',
+                                        color: 'white',
+                                        border: 'none',
+                                        cursor: userLocationLoading ? 'wait' : 'pointer',
+                                        fontWeight: 600,
+                                        fontSize: '0.85rem'
+                                    }}
+                                >
+                                    {userLocationLoading
+                                        ? '⏳ Locating...'
+                                        : useLiveLocation
+                                            ? '✅ Refresh my location'
+                                            : '📍 Use my location'}
+                                </button>
+                                {userLocation && (
+                                    <p style={{ fontSize: '0.7rem', marginTop: '6px', opacity: 0.85 }}>
+                                        {userLocation.lat.toFixed(5)}, {userLocation.lng.toFixed(5)}
+                                    </p>
+                                )}
+                                {userLocationError && (
+                                    <p style={{ color: '#fca5a5', fontSize: '0.7rem', marginTop: '6px' }}>
+                                        {userLocationError}
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Campus location picker (top-right) */}
+                            <div className="location-selector">
+                                <label className="text-sm font-medium block mb-1">📍 Location</label>
+                                <select
+                                    value={selectedLocation.id}
+                                    onChange={(e) => {
+                                        const loc = CAMPUS_LOCATIONS.find(l => l.id === e.target.value);
+                                        if (loc) setSelectedLocation(loc);
+                                    }}
+                                >
+                                    {CAMPUS_LOCATIONS.map(loc => (
+                                        <option key={loc.id} value={loc.id}>{loc.emoji} {loc.name}</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div className="view-toggle">
+                                <button
+                                    className={`${viewType === 'map' ? 'active' : ''}`}
+                                    onClick={() => setViewType('map')}
+                                >
+                                    🗺️ Map
+                                </button>
+                                <button
+                                    className={`${viewType === 'panorama' ? 'active' : ''}`}
+                                    onClick={() => setViewType('panorama')}
+                                >
+                                    🏙️ 360°
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Location Cards */}
+                    <div className="location-grid">
+                        {CAMPUS_LOCATIONS.map(loc => (
+                            <div
+                                key={loc.id}
+                                className={`location-card ${selectedLocation.id === loc.id ? 'active' : ''}`}
+                                onClick={() => {
+                                    setSelectedLocation(loc);
+                                    if (viewType === 'map' && mapInstanceRef.current) {
+                                        mapInstanceRef.current.panTo([loc.lat, loc.lng]);
+                                        mapInstanceRef.current.setZoom(18);
+                                    }
+                                }}
+                            >
+                                <span className="emoji">{loc.emoji}</span>
+                                <span className="name">{loc.name}</span>
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Facilities Near You — appears after locating */}
+                    {useLiveLocation && nearbyFacilities.length > 0 && (
+                        <div className="mt-6 card-modern">
+                            <h3 className="font-bold text-lg text-gray-800 dark:text-white mb-1">
+                                📡 Facilities Near You
+                            </h3>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                                Ranked by distance from your current position
+                            </p>
+                            <div className="space-y-2">
+                                {nearbyFacilities.map(f => (
+                                    <div
+                                        key={f.id}
+                                        className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-700 hover:shadow-md transition cursor-pointer"
+                                        onClick={() => {
+                                            setSelectedLocation(f);
+                                            if (mapInstanceRef.current) {
+                                                mapInstanceRef.current.setView([f.lat, f.lng], 18);
+                                            }
+                                        }}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-2xl">{f.emoji}</span>
+                                            <div>
+                                                <p className="font-semibold text-gray-800 dark:text-white text-sm">
+                                                    {f.name}
+                                                </p>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                    {f.facilities.slice(0, 3).join(' • ')}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="text-sm font-bold text-blue-600 dark:text-blue-400">
+                                                {f.distanceText}
+                                            </p>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400">away</p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Selected location info */}
+                    <div className="mt-4 card-modern">
+                        <div className="facility-detail">
+                            <img
+                                src={selectedLocation.image}
+                                alt={selectedLocation.name}
+                                onError={(e) => { e.target.src = 'https://via.placeholder.com/280x200?text=' + encodeURIComponent(selectedLocation.name); }}
+                            />
+                            <div className="info">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <span className="text-4xl">{selectedLocation.emoji}</span>
+                                    <div>
+                                        <h3 className="font-bold text-xl text-gray-800 dark:text-white">{selectedLocation.name}</h3>
+                                        <p className="text-sm text-gray-500 dark:text-gray-400">📍 {selectedLocation.lat.toFixed(4)}, {selectedLocation.lng.toFixed(4)}</p>
+                                    </div>
+                                </div>
+                                <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">{selectedLocation.description}</p>
+
+                                <div className="grid grid-cols-2 gap-3 text-sm mb-3">
+                                    <div>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold">⏰ Timing</p>
+                                        <p className="text-gray-800 dark:text-white font-medium">{selectedLocation.timing}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold">📞 Contact</p>
+                                        <p className="text-gray-800 dark:text-white font-medium">{selectedLocation.contact}</p>
+                                    </div>
+                                </div>
+
+                                <div className="mb-3">
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold mb-1">🏢 Facilities</p>
+                                    <div className="flex flex-wrap gap-1">
+                                        {selectedLocation.facilities.map((f, i) => (
+                                            <span key={i} className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-1 rounded-full">{f}</span>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={() => openLocationDetail(selectedLocation)}
+                                    className="text-sm py-2 px-4"
+                                    style={{
+                                        background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+                                        color: 'white',
+                                        borderRadius: '10px',
+                                        border: 'none',
+                                        cursor: 'pointer',
+                                        fontWeight: 600
+                                    }}
+                                >
+                                    🔍 View Full Details
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    {showDetailModal && detailLocation && (
+                        <div className="modal-overlay" onClick={() => setShowDetailModal(false)}>
+                            <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+                                <div className="flex justify-between items-center mb-4">
+                                    <h2 className="text-xl font-bold text-gray-800 dark:text-white">
+                                        {detailLocation.emoji} {detailLocation.name}
+                                    </h2>
+                                    <button
+                                        onClick={() => setShowDetailModal(false)}
+                                        className="text-gray-500 hover:text-gray-700 text-2xl"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+
+                                <div className="facility-detail">
+                                    <img
+                                        src={detailLocation.image}
+                                        alt={detailLocation.name}
+                                        onError={(e) => { e.target.src = 'https://via.placeholder.com/280x200?text=' + encodeURIComponent(detailLocation.name); }}
+                                    />
+                                    <div className="info">
+                                        <p className="text-gray-700 dark:text-gray-300 mb-4">{detailLocation.description}</p>
+
+                                        <div className="grid grid-cols-2 gap-3 text-sm mb-4">
+                                            <div>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold">⏰ Timing</p>
+                                                <p className="text-gray-800 dark:text-white font-medium">{detailLocation.timing}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold">📞 Contact</p>
+                                                <p className="text-gray-800 dark:text-white font-medium">{detailLocation.contact}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold">📍 Coordinates</p>
+                                                <p className="text-gray-800 dark:text-white font-medium">{detailLocation.lat.toFixed(4)}, {detailLocation.lng.toFixed(4)}</p>
+                                            </div>
+                                            <div>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold">🏢 Type</p>
+                                                <p className="text-gray-800 dark:text-white font-medium">Campus Facility</p>
+                                            </div>
+                                        </div>
+
+                                        <div className="mb-4">
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold mb-2">🏢 Facilities Available</p>
+                                            <div className="flex flex-wrap gap-2">
+                                                {detailLocation.facilities.map((f, i) => (
+                                                    <span key={i} className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-3 py-1 rounded-full font-medium">{f}</span>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex justify-end gap-2 mt-4">
+                                    <button
+                                        onClick={() => setShowDetailModal(false)}
+                                        className="py-2 px-4"
+                                        style={{
+                                            background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+                                            color: 'white',
+                                            borderRadius: '10px',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            fontWeight: 600
+                                        }}
+                                    >
+                                        Close
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    ReactDOM.render(<CampusView />, document.getElementById('root'));
+</script>
 </body>
 </html>

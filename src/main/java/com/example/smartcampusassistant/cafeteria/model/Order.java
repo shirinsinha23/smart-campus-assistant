@@ -1,6 +1,5 @@
 package com.example.smartcampusassistant.cafeteria.model;
 
-import com.example.smartcampusassistant.cafeteria.OrderStatus;
 import com.example.smartcampusassistant.user.User;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
@@ -41,6 +40,12 @@ public class Order {
     @Builder.Default
     private OrderStatus status = OrderStatus.PENDING;
 
+    // ✅ FIXED: Payment Status field
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_status")
+    @Builder.Default
+    private PaymentStatus paymentStatus = PaymentStatus.PENDING;
+
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
 
@@ -55,6 +60,14 @@ public class Order {
 
     @Column(name = "order_number", unique = true)
     private String orderNumber;
+
+    // ===== Restaurant Relationship =====
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "restaurant_id")
+    private Restaurant restaurant;
+
+    @Column(name = "restaurant_id", insertable = false, updatable = false)
+    private Long restaurantId;
 
     @PrePersist
     protected void onCreate() {

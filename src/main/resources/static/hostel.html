@@ -1,10 +1,1261 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>$Title$</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>🏠 Hostel Management · Smart Campus</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f1f5f9; }
+        .dark body { background: #0b1120; }
+
+        .sidebar {
+            position: fixed; left: 0; top: 0; height: 100vh; width: 260px;
+            background: #0f172a; color: #e2e8f0; z-index: 1000;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow-y: auto; overflow-x: hidden;
+            display: flex; flex-direction: column;
+            box-shadow: 4px 0 20px rgba(0,0,0,0.3);
+        }
+        .sidebar::-webkit-scrollbar { width: 4px; }
+        .sidebar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        .sidebar.collapsed { width: 72px; }
+        .sidebar.collapsed .sidebar-label, .sidebar.collapsed .sidebar-user-name, .sidebar.collapsed .sidebar-user-role, .sidebar.collapsed .sidebar-logout-text { display: none; }
+        .sidebar.collapsed .sidebar-item { justify-content: center; padding: 12px; }
+        .sidebar.collapsed .sidebar-item .icon { margin-right: 0; font-size: 1.5rem; }
+        .sidebar.collapsed .sidebar-header .logo-text { display: none; }
+        .sidebar-header { padding: 18px 20px; border-bottom: 1px solid #1e293b; display: flex; align-items: center; justify-content: space-between; min-height: 68px; }
+        .sidebar-header .logo-text { font-size: 1.2rem; font-weight: 700; background: linear-gradient(135deg, #60a5fa, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; white-space: nowrap; }
+        .sidebar-toggle-btn { background: transparent; border: none; color: #94a3b8; font-size: 1.2rem; cursor: pointer; padding: 4px 8px; border-radius: 6px; transition: 0.2s; }
+        .sidebar-toggle-btn:hover { background: #1e293b; color: white; }
+        .sidebar-menu { flex: 1; padding: 12px 10px; }
+        .sidebar-menu-title { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; padding: 12px 12px 6px; font-weight: 600; }
+        .sidebar.collapsed .sidebar-menu-title { display: none; }
+        .sidebar-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 10px; cursor: pointer; transition: all 0.2s ease; color: #94a3b8; font-size: 0.875rem; font-weight: 500; width: 100%; border: none; background: transparent; text-align: left; white-space: nowrap; overflow: hidden; }
+        .sidebar-item:hover { background: rgba(255,255,255,0.06); color: #f1f5f9; }
+        .sidebar-item.active { background: #3b82f6; color: white; box-shadow: 0 4px 12px rgba(59,130,246,0.3); }
+        .sidebar-item .icon { font-size: 1.2rem; min-width: 28px; text-align: center; }
+        .sidebar-item .sidebar-label { flex: 1; }
+        .sidebar-footer { padding: 16px 14px; border-top: 1px solid #1e293b; margin-top: auto; }
+        .sidebar-user { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,0.04); }
+        .sidebar-user-avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6, #8b5cf6); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem; color: white; flex-shrink: 0; }
+        .sidebar-user-name { font-size: 0.875rem; font-weight: 600; color: #f1f5f9; }
+        .sidebar-user-role { font-size: 0.65rem; color: #94a3b8; text-transform: uppercase; }
+        .sidebar-logout { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 10px; cursor: pointer; transition: all 0.2s ease; color: #94a3b8; border: none; background: transparent; width: 100%; font-size: 0.875rem; margin-top: 6px; }
+        .sidebar-logout:hover { background: rgba(239,68,68,0.15); color: #ef4444; }
+        .main-content { margin-left: 260px; min-height: 100vh; background: #f1f5f9; padding: 24px; transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .sidebar.collapsed ~ .main-content { margin-left: 72px; }
+        .dark .sidebar { background: #0b1120; }
+        .dark .sidebar-header { border-color: #1e293b; }
+        .dark .sidebar-footer { border-color: #1e293b; }
+        .dark .sidebar-item:hover { background: rgba(255,255,255,0.04); }
+        .dark .sidebar-item.active { background: #2563eb; }
+        .dark .main-content { background: #0b1120; }
+        .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 999; }
+        .sidebar-overlay.active { display: block; }
+        @media (max-width: 768px) { .sidebar { transform: translateX(-100%); width: 280px; } .sidebar.open { transform: translateX(0); } .sidebar.collapsed { width: 280px; } .sidebar.collapsed .sidebar-label, .sidebar.collapsed .sidebar-user-name, .sidebar.collapsed .sidebar-user-role { display: block; } .sidebar.collapsed .sidebar-item { justify-content: flex-start; padding: 10px 14px; } .sidebar.collapsed .sidebar-header .logo-text { display: block; } .main-content { margin-left: 0; padding-top: 16px; } .sidebar.collapsed ~ .main-content { margin-left: 0; } .sidebar-toggle-mobile { display: block !important; position: fixed; top: 12px; left: 12px; z-index: 1001; background: #0f172a; color: white; border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 1.2rem; box-shadow: 0 4px 12px rgba(0,0,0,0.3); } .dark .sidebar-toggle-mobile { background: #0b1120; } }
+        .sidebar-toggle-mobile { display: none; }
+
+        .card-modern { background: #ffffff; border-radius: 16px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); border: 1px solid #e5e7eb; transition: all 0.3s ease; }
+        .dark .card-modern { background: #182235; border-color: #253450; }
+        .stat-card { background: #ffffff; border-radius: 16px; padding: 20px 24px; border: 1px solid #e5e7eb; transition: all 0.3s ease; cursor: default; }
+        .dark .stat-card { background: #182235; border-color: #253450; }
+        .stat-label { color: #64748b; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; }
+        .dark .stat-label { color: #94a3b8; }
+        .stat-value { color: #0f172a; font-size: 1.75rem; font-weight: 700; }
+        .dark .stat-value { color: #e8edf5; }
+        .stat-sub { color: #94a3b8; font-size: 0.75rem; margin-top: 4px; }
+        .dark .stat-sub { color: #6b7a93; }
+
+        .btn-primary { background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 10px 20px; border-radius: 10px; border: none; cursor: pointer; font-weight: 600; transition: all 0.3s ease; }
+        .btn-primary:hover { transform: scale(1.02); box-shadow: 0 4px 15px rgba(59,130,246,0.4); }
+        .btn-danger { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; transition: all 0.3s ease; }
+        .btn-danger:hover { transform: scale(1.02); box-shadow: 0 4px 15px rgba(239,68,68,0.4); }
+        .btn-success { background: linear-gradient(135deg, #22c55e, #16a34a); color: white; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; transition: all 0.3s ease; }
+        .btn-success:hover { transform: scale(1.02); box-shadow: 0 4px 15px rgba(34,197,94,0.4); }
+        .btn-warning { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; transition: all 0.3s ease; }
+        .btn-warning:hover { transform: scale(1.02); box-shadow: 0 4px 15px rgba(245,158,11,0.4); }
+
+        .badge { padding: 4px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
+        .badge-pending { background: #fef3c7; color: #92400e; }
+        .badge-inprogress { background: #dbeafe; color: #1e40af; }
+        .badge-resolved { background: #dcfce7; color: #166534; }
+        .badge-rejected { background: #fee2e2; color: #991b1b; }
+        .badge-available { background: #dcfce7; color: #166534; }
+        .badge-occupied { background: #fee2e2; color: #991b1b; }
+        .badge-maintenance { background: #fef3c7; color: #92400e; }
+        .badge-reserved { background: #dbeafe; color: #1e40af; }
+        .dark .badge-pending { background: #3a2a1a; color: #fdba74; }
+        .dark .badge-inprogress { background: #1a2a5a; color: #93c5fd; }
+        .dark .badge-resolved { background: #1a3a2a; color: #6ee7b7; }
+        .dark .badge-rejected { background: #3a1a1a; color: #fca5a5; }
+        .dark .badge-available { background: #1a3a2a; color: #6ee7b7; }
+        .dark .badge-occupied { background: #3a1a1a; color: #fca5a5; }
+        .dark .badge-maintenance { background: #3a2a1a; color: #fdba74; }
+        .dark .badge-reserved { background: #1a2a5a; color: #93c5fd; }
+
+        .modal-overlay { background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); }
+        .modal-content { background: white; border-radius: 16px; padding: 24px; max-width: 700px; width: 100%; max-height: 90vh; overflow-y: auto; }
+        .dark .modal-content { background: #182235; }
+
+        .input-field { width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 10px; outline: none; transition: all 0.3s ease; background: white; color: #111827; }
+        .input-field:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+        .dark .input-field { background: #253450; border-color: #3a4a66; color: #e8edf5; }
+        .dark .input-field:focus { border-color: #60a5fa; box-shadow: 0 0 0 3px rgba(96,165,250,0.1); }
+
+        .welcome-gradient { background: linear-gradient(135deg, #1e3a5f 0%, #4a90d9 50%, #6b9bff 100%); }
+        .dark .welcome-gradient { background: linear-gradient(135deg, #0b1a2e 0%, #1a3a5f 50%, #2a4a7a 100%); }
+        .welcome-text { color: white; }
+        .welcome-sub { color: rgba(255,255,255,0.8); }
+
+        .room-card { transition: all 0.3s ease; }
+        .room-card:hover { transform: translateY(-2px); box-shadow: 0 10px 40px rgba(0,0,0,0.08); }
+
+        .facility-tag { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 0.65rem; font-weight: 600; margin: 2px; }
+        .facility-tag-bathroom { background: #dbeafe; color: #1d4ed8; }
+        .facility-tag-washroom { background: #d1fae5; color: #065f46; }
+        .facility-tag-ac { background: #fce7f3; color: #9d174d; }
+        .facility-tag-wifi { background: #f3e8ff; color: #6d28d9; }
+        .facility-tag-furnished { background: #fef3c7; color: #92400e; }
+        .facility-tag-study { background: #e0e7ff; color: #4338ca; }
+        .facility-tag-wardrobe { background: #ffedd5; color: #9a3412; }
+        .facility-tag-geyser { background: #fecaca; color: #991b1b; }
+        .facility-tag-balcony { background: #d1fae5; color: #065f46; }
+        .facility-tag-kitchen { background: #fce7f3; color: #9d174d; }
+        .facility-tag-living { background: #f3e8ff; color: #6d28d9; }
+        .facility-tag-parking { background: #dbeafe; color: #1d4ed8; }
+        .dark .facility-tag-bathroom { background: #1a2a5a; color: #93c5fd; }
+        .dark .facility-tag-washroom { background: #1a3a2a; color: #6ee7b7; }
+        .dark .facility-tag-ac { background: #3a1a3a; color: #f9a8d4; }
+        .dark .facility-tag-wifi { background: #2a1a4a; color: #c4b5fd; }
+        .dark .facility-tag-furnished { background: #3a2a1a; color: #fdba74; }
+        .dark .facility-tag-study { background: #1a2a5a; color: #93c5fd; }
+        .dark .facility-tag-wardrobe { background: #3a2a1a; color: #fdba74; }
+        .dark .facility-tag-geyser { background: #3a1a1a; color: #fca5a5; }
+        .dark .facility-tag-balcony { background: #1a3a2a; color: #6ee7b7; }
+        .dark .facility-tag-kitchen { background: #3a1a3a; color: #f9a8d4; }
+        .dark .facility-tag-living { background: #2a1a4a; color: #c4b5fd; }
+        .dark .facility-tag-parking { background: #1a2a5a; color: #93c5fd; }
+
+        .mess-menu-item { padding: 8px 12px; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; }
+        .dark .mess-menu-item { border-bottom-color: #253450; }
+        .mess-menu-item:last-child { border-bottom: none; }
+
+        .hostel-detail-label { font-size: 0.7rem; color: #64748b; font-weight: 600; text-transform: uppercase; }
+        .dark .hostel-detail-label { color: #94a3b8; }
+        .hostel-detail-value { font-size: 0.95rem; font-weight: 500; color: #0f172a; }
+        .dark .hostel-detail-value { color: #e8edf5; }
+    </style>
 </head>
 <body>
-$END$
+<div id="root"></div>
+
+<script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const API_BASE_URL = '/api';
+
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = 'index.html';
+    }
+
+    const api = axios.create({
+        baseURL: API_BASE_URL,
+        headers: { 'Content-Type': 'application/json' }
+    });
+
+    api.interceptors.request.use(config => {
+        const token = localStorage.getItem('token');
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+        }
+        return config;
+    });
+
+    api.interceptors.response.use(
+        response => response,
+        error => {
+            if (error.response?.status === 401) {
+                localStorage.clear();
+                window.location.href = 'index.html';
+            }
+            return Promise.reject(error);
+        }
+    );
+
+    const name = localStorage.getItem('name') || 'User';
+    const userId = localStorage.getItem('userId');
+    const loginId = localStorage.getItem('loginId');
+    const role = localStorage.getItem('role') || 'STUDENT';
+    const isAdmin = role === 'ADMIN';
+
+    // ===== ROOM TYPE CONSTANTS =====
+    const ROOM_TYPES = [
+        { value: 'SINGLE_BED', label: '🛏️ Single Bed Room', capacity: 1 },
+        { value: 'DOUBLE_BED', label: '🛏️ Double Bed Room', capacity: 2 },
+        { value: 'TRIPLE_BED', label: '🛏️ Triple Bed Room', capacity: 3 },
+        { value: 'TWO_BHK', label: '🏢 2 BHK Apartment', capacity: 4 },
+        { value: 'THREE_BHK', label: '🏢 3 BHK Apartment', capacity: 5 },
+        { value: 'FIVE_BHK', label: '🏢 5 BHK Apartment', capacity: 6 }
+    ];
+
+    const ROOM_STATUSES = [
+        { value: 'AVAILABLE', label: '✅ Available' },
+        { value: 'OCCUPIED', label: '🚫 Occupied' },
+        { value: 'MAINTENANCE', label: '🔧 Maintenance' },
+        { value: 'RESERVED', label: '📌 Reserved' }
+    ];
+
+    const FACILITIES = [
+        { value: 'ATTACHED_BATHROOM', label: '🚿 Attached Bathroom' },
+        { value: 'ATTACHED_WASHROOM', label: '🚻 Attached Washroom' },
+        { value: 'AC', label: '❄️ AC' },
+        { value: 'WIFI', label: '📶 WiFi' },
+        { value: 'FURNISHED', label: '🛋️ Furnished' },
+        { value: 'STUDY_TABLE', label: '📚 Study Table' },
+        { value: 'WARDROBE', label: '👔 Wardrobe' },
+        { value: 'GEYSER', label: '🔥 Geyser' },
+        { value: 'BALCONY', label: '🌅 Balcony' },
+        { value: 'KITCHEN', label: '🍳 Kitchen' },
+        { value: 'LIVING_ROOM', label: '🛋️ Living Room' },
+        { value: 'PARKING', label: '🅿️ Parking' }
+    ];
+
+    const BED_TYPES = [
+        { value: 'SINGLE_BED', label: '🛏️ Single Bed' },
+        { value: 'DOUBLE_BED', label: '🛏️ Double Bed' },
+        { value: 'QUEEN_BED', label: '👑 Queen Bed' },
+        { value: 'KING_BED', label: '👑 King Bed' },
+        { value: 'BUNK_BED', label: '🛏️ Bunk Bed' },
+        { value: 'SOFA_CUM_BED', label: '🛋️ Sofa-cum-Bed' }
+    ];
+
+    const MAINTENANCE_CATEGORIES = ['Plumbing', 'Electrical', 'Furniture', 'AC', 'WiFi', 'Cleaning', 'Other'];
+
+    // ===== MOCK MESS MENU =====
+    const MOCK_MESS_MENU = {
+        'Monday': { breakfast: 'Poha, Upma, Tea, Coffee', lunch: 'Roti, Dal, Rice, Vegetable, Salad', dinner: 'Roti, Paneer, Rice, Sweet' },
+        'Tuesday': { breakfast: 'Idli, Sambhar, Chutney, Tea', lunch: 'Roti, Chole, Rice, Raita', dinner: 'Roti, Mixed Veg, Rice, Dal' },
+        'Wednesday': { breakfast: 'Dosa, Chutney, Sambhar, Tea', lunch: 'Roti, Rajma, Rice, Salad', dinner: 'Roti, Aloo Gobi, Rice, Dal' },
+        'Thursday': { breakfast: 'Paratha, Curd, Pickle, Tea', lunch: 'Roti, Dal Tadka, Rice, Vegetable', dinner: 'Roti, Butter Chicken, Rice, Raita' },
+        'Friday': { breakfast: 'Puri, Bhaji, Tea', lunch: 'Roti, Paneer, Rice, Salad', dinner: 'Roti, Mix Veg, Rice, Dal' },
+        'Saturday': { breakfast: 'Chole Bhature, Tea', lunch: 'Roti, Dal, Rice, Vegetable', dinner: 'Roti, Special Veg, Rice, Sweet' },
+        'Sunday': { breakfast: 'Bread, Jam, Omelette, Tea', lunch: 'Roti, Special Dal, Rice, Paneer', dinner: 'Roti, Veg Biryani, Raita' }
+    };
+
+    function HostelPage() {
+        const [isDarkMode, setIsDarkMode] = useState(() => {
+            const savedTheme = localStorage.getItem('theme');
+            return savedTheme === 'dark';
+        });
+        const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+        const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+        const [loading, setLoading] = useState(true);
+        const [message, setMessage] = useState({ text: '', type: '' });
+
+        // ===== HOSTEL STATES =====
+        const [hostels, setHostels] = useState([]);
+        const [rooms, setRooms] = useState([]);
+        const [allocations, setAllocations] = useState([]);
+        const [myAllocation, setMyAllocation] = useState(null);
+        const [maintenanceRequests, setMaintenanceRequests] = useState([]);
+        const [rules, setRules] = useState([]);
+        const [stats, setStats] = useState(null);
+        const [activeTab, setActiveTab] = useState('dashboard');
+
+        // ===== MODAL STATES =====
+        const [showHostelModal, setShowHostelModal] = useState(false);
+        const [showRoomModal, setShowRoomModal] = useState(false);
+        const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
+        const [showRuleModal, setShowRuleModal] = useState(false);
+        const [showMessMenuModal, setShowMessMenuModal] = useState(false);
+        const [selectedHostel, setSelectedHostel] = useState(null);
+
+        // ===== FORM STATES =====
+        const [hostelForm, setHostelForm] = useState({
+            name: '', block: '', totalFloors: '', address: '', contactNumber: '', email: '', description: '',
+            wardenName: '', wardenPhone: '', wardenEmail: ''
+        });
+
+        const [roomForm, setRoomForm] = useState({
+            roomNumber: '', floor: '', wing: 'A', roomType: 'SINGLE_BED', bedType: 'SINGLE_BED',
+            totalRooms: 1, capacity: 1, attachedBathrooms: 1, attachedWashrooms: 1,
+            rentPerMonth: '', description: '', facilities: [], additionalAmenities: '',
+            roomSize: '', hasBalcony: false, hasKitchen: false, hasLivingRoom: false,
+            furnishedType: 'Fully'
+        });
+
+        const [maintenanceForm, setMaintenanceForm] = useState({
+            title: '', description: '', category: 'Plumbing', priority: 'MEDIUM'
+        });
+
+        const [ruleForm, setRuleForm] = useState({
+            ruleText: '', category: 'General', priority: 3
+        });
+
+        // ===== FETCH FUNCTIONS =====
+        const fetchHostels = async () => {
+            try {
+                const res = await api.get('/hostel/hostels');
+                setHostels(res.data || []);
+                console.log('🏠 Hostels loaded:', res.data);
+            } catch (err) {
+                console.error('Failed to fetch hostels:', err);
+                const mockHostels = [
+                    {
+                        id: 1,
+                        name: 'Boys Hostel A',
+                        block: 'Block A',
+                        totalFloors: 5,
+                        address: 'Campus East Side, Near Gate No. 1',
+                        contactNumber: '9876543210',
+                        email: 'boyshostel.a@campus.edu',
+                        description: 'Boys hostel with modern amenities including AC, WiFi, and 24/7 security',
+                        isActive: true,
+                        wardenName: 'Dr. Rajesh Kumar',
+                        wardenPhone: '9876543201',
+                        wardenEmail: 'rkumar@campus.edu'
+                    },
+                    {
+                        id: 2,
+                        name: 'Girls Hostel B',
+                        block: 'Block B',
+                        totalFloors: 4,
+                        address: 'Campus West Side, Near Gate No. 2',
+                        contactNumber: '9876543211',
+                        email: 'girlshostel.b@campus.edu',
+                        description: 'Girls hostel with 24/7 security, CCTV surveillance, and modern facilities',
+                        isActive: true,
+                        wardenName: 'Dr. Priya Sharma',
+                        wardenPhone: '9876543202',
+                        wardenEmail: 'psharma@campus.edu'
+                    },
+                    {
+                        id: 3,
+                        name: 'Boys Hostel C',
+                        block: 'Block C',
+                        totalFloors: 3,
+                        address: 'Campus North Side',
+                        contactNumber: '9876543212',
+                        email: 'boyshostel.c@campus.edu',
+                        description: 'Budget hostel for boys with basic amenities',
+                        isActive: true,
+                        wardenName: 'Dr. Anil Gupta',
+                        wardenPhone: '9876543203',
+                        wardenEmail: 'agupta@campus.edu'
+                    }
+                ];
+                setHostels(mockHostels);
+            }
+        };
+
+        const fetchRooms = async () => {
+            try {
+                const res = await api.get('/hostel/rooms');
+                setRooms(res.data || []);
+                console.log('🛏️ Rooms loaded:', res.data);
+            } catch (err) {
+                console.error('Failed to fetch rooms:', err);
+                const mockRooms = [
+                    // Boys Hostel A - Block A
+                    { id: 1, roomNumber: 'A101', floor: 1, wing: 'A', roomType: 'SINGLE_BED', roomTypeDisplay: 'Single Bed Room', bedType: 'SINGLE_BED', bedTypeDisplay: 'Single Bed', totalRooms: 1, capacity: 1, availableSeats: 1, occupiedCount: 0, attachedBathrooms: 1, attachedWashrooms: 1, rentPerMonth: 5000, description: 'Comfortable single room with AC', facilities: ['AC', 'WIFI', 'STUDY_TABLE', 'WARDROBE'], status: 'AVAILABLE', statusDisplay: 'Available', hostelId: 1, hostelName: 'Boys Hostel A', hostelBlock: 'Block A' },
+                    { id: 2, roomNumber: 'A102', floor: 1, wing: 'A', roomType: 'SINGLE_BED', roomTypeDisplay: 'Single Bed Room', bedType: 'SINGLE_BED', bedTypeDisplay: 'Single Bed', totalRooms: 1, capacity: 1, availableSeats: 1, occupiedCount: 0, attachedBathrooms: 1, attachedWashrooms: 1, rentPerMonth: 5000, description: 'Single room with attached bathroom', facilities: ['WIFI', 'STUDY_TABLE', 'WARDROBE'], status: 'AVAILABLE', statusDisplay: 'Available', hostelId: 1, hostelName: 'Boys Hostel A', hostelBlock: 'Block A' },
+                    { id: 3, roomNumber: 'A201', floor: 2, wing: 'A', roomType: 'DOUBLE_BED', roomTypeDisplay: 'Double Bed Room', bedType: 'DOUBLE_BED', bedTypeDisplay: 'Double Bed', totalRooms: 1, capacity: 2, availableSeats: 2, occupiedCount: 0, attachedBathrooms: 1, attachedWashrooms: 1, rentPerMonth: 8000, description: 'Spacious double room with balcony', facilities: ['AC', 'WIFI', 'BALCONY', 'WARDROBE'], status: 'AVAILABLE', statusDisplay: 'Available', hostelId: 1, hostelName: 'Boys Hostel A', hostelBlock: 'Block A' },
+                    { id: 4, roomNumber: 'A202', floor: 2, wing: 'A', roomType: 'DOUBLE_BED', roomTypeDisplay: 'Double Bed Room', bedType: 'DOUBLE_BED', bedTypeDisplay: 'Double Bed', totalRooms: 1, capacity: 2, availableSeats: 2, occupiedCount: 0, attachedBathrooms: 1, attachedWashrooms: 1, rentPerMonth: 8000, description: 'Double room with attached bathroom', facilities: ['AC', 'WIFI', 'WARDROBE'], status: 'AVAILABLE', statusDisplay: 'Available', hostelId: 1, hostelName: 'Boys Hostel A', hostelBlock: 'Block A' },
+                    { id: 5, roomNumber: 'A301', floor: 3, wing: 'A', roomType: 'TRIPLE_BED', roomTypeDisplay: 'Triple Bed Room', bedType: 'BUNK_BED', bedTypeDisplay: 'Bunk Bed', totalRooms: 1, capacity: 3, availableSeats: 3, occupiedCount: 0, attachedBathrooms: 1, attachedWashrooms: 1, rentPerMonth: 6000, description: 'Triple sharing room with bunk beds', facilities: ['WIFI', 'STUDY_TABLE', 'WARDROBE'], status: 'AVAILABLE', statusDisplay: 'Available', hostelId: 1, hostelName: 'Boys Hostel A', hostelBlock: 'Block A' },
+
+                    // Girls Hostel B - Block B
+                    { id: 6, roomNumber: 'B101', floor: 1, wing: 'B', roomType: 'SINGLE_BED', roomTypeDisplay: 'Single Bed Room', bedType: 'SINGLE_BED', bedTypeDisplay: 'Single Bed', totalRooms: 1, capacity: 1, availableSeats: 1, occupiedCount: 0, attachedBathrooms: 1, attachedWashrooms: 1, rentPerMonth: 5500, description: 'Comfortable single room for girls', facilities: ['WIFI', 'STUDY_TABLE', 'WARDROBE', 'GEYSER'], status: 'AVAILABLE', statusDisplay: 'Available', hostelId: 2, hostelName: 'Girls Hostel B', hostelBlock: 'Block B' },
+                    { id: 7, roomNumber: 'B102', floor: 1, wing: 'B', roomType: 'SINGLE_BED', roomTypeDisplay: 'Single Bed Room', bedType: 'SINGLE_BED', bedTypeDisplay: 'Single Bed', totalRooms: 1, capacity: 1, availableSeats: 1, occupiedCount: 0, attachedBathrooms: 1, attachedWashrooms: 1, rentPerMonth: 5500, description: 'Single room with attached bathroom', facilities: ['WIFI', 'STUDY_TABLE', 'WARDROBE'], status: 'AVAILABLE', statusDisplay: 'Available', hostelId: 2, hostelName: 'Girls Hostel B', hostelBlock: 'Block B' },
+                    { id: 8, roomNumber: 'B201', floor: 2, wing: 'B', roomType: 'DOUBLE_BED', roomTypeDisplay: 'Double Bed Room', bedType: 'DOUBLE_BED', bedTypeDisplay: 'Double Bed', totalRooms: 1, capacity: 2, availableSeats: 1, occupiedCount: 1, attachedBathrooms: 1, attachedWashrooms: 1, rentPerMonth: 9000, description: 'Spacious double room with AC and balcony', facilities: ['AC', 'WIFI', 'BALCONY', 'WARDROBE'], status: 'OCCUPIED', statusDisplay: 'Occupied', hostelId: 2, hostelName: 'Girls Hostel B', hostelBlock: 'Block B' },
+                    { id: 9, roomNumber: 'B202', floor: 2, wing: 'B', roomType: 'DOUBLE_BED', roomTypeDisplay: 'Double Bed Room', bedType: 'DOUBLE_BED', bedTypeDisplay: 'Double Bed', totalRooms: 1, capacity: 2, availableSeats: 2, occupiedCount: 0, attachedBathrooms: 1, attachedWashrooms: 1, rentPerMonth: 9000, description: 'Double room currently occupied', facilities: ['AC', 'WIFI'], status: 'AVAILABLE', statusDisplay: 'Available', hostelId: 2, hostelName: 'Girls Hostel B', hostelBlock: 'Block B' },
+                    { id: 10, roomNumber: 'B301', floor: 3, wing: 'B', roomType: 'TRIPLE_BED', roomTypeDisplay: 'Triple Bed Room', bedType: 'BUNK_BED', bedTypeDisplay: 'Bunk Bed', totalRooms: 1, capacity: 3, availableSeats: 2, occupiedCount: 1, attachedBathrooms: 1, attachedWashrooms: 1, rentPerMonth: 7000, description: 'Triple sharing room with study area', facilities: ['WIFI', 'STUDY_TABLE', 'WARDROBE'], status: 'AVAILABLE', statusDisplay: 'Available', hostelId: 2, hostelName: 'Girls Hostel B', hostelBlock: 'Block B' },
+                    { id: 11, roomNumber: 'B401', floor: 4, wing: 'B', roomType: 'THREE_BHK', roomTypeDisplay: '3 BHK Apartment', bedType: 'KING_BED', bedTypeDisplay: 'King Bed', totalRooms: 3, capacity: 5, availableSeats: 5, occupiedCount: 0, attachedBathrooms: 3, attachedWashrooms: 3, rentPerMonth: 20000, description: 'Luxury 3 BHK apartment for girls', facilities: ['AC', 'WIFI', 'FURNISHED', 'KITCHEN', 'LIVING_ROOM', 'BALCONY', 'PARKING'], status: 'AVAILABLE', statusDisplay: 'Available', hostelId: 2, hostelName: 'Girls Hostel B', hostelBlock: 'Block B' },
+
+                    // Boys Hostel C - Block C
+                    { id: 12, roomNumber: 'C101', floor: 1, wing: 'C', roomType: 'SINGLE_BED', roomTypeDisplay: 'Single Bed Room', bedType: 'SINGLE_BED', bedTypeDisplay: 'Single Bed', totalRooms: 1, capacity: 1, availableSeats: 1, occupiedCount: 0, attachedBathrooms: 1, attachedWashrooms: 1, rentPerMonth: 4000, description: 'Budget single room', facilities: ['WIFI', 'STUDY_TABLE'], status: 'AVAILABLE', statusDisplay: 'Available', hostelId: 3, hostelName: 'Boys Hostel C', hostelBlock: 'Block C' },
+                    { id: 13, roomNumber: 'C201', floor: 2, wing: 'C', roomType: 'DOUBLE_BED', roomTypeDisplay: 'Double Bed Room', bedType: 'DOUBLE_BED', bedTypeDisplay: 'Double Bed', totalRooms: 1, capacity: 2, availableSeats: 2, occupiedCount: 0, attachedBathrooms: 1, attachedWashrooms: 1, rentPerMonth: 6000, description: 'Budget double room', facilities: ['WIFI', 'WARDROBE'], status: 'AVAILABLE', statusDisplay: 'Available', hostelId: 3, hostelName: 'Boys Hostel C', hostelBlock: 'Block C' }
+                ];
+                setRooms(mockRooms);
+            }
+        };
+
+        const fetchAllocations = async () => {
+            try {
+                const res = await api.get('/hostel/allocations');
+                setAllocations(res.data || []);
+                console.log('📋 Allocations loaded:', res.data);
+            } catch (err) {
+                console.error('Failed to fetch allocations:', err);
+                const mockAllocations = [
+                    { id: 1, studentId: 1, studentName: 'Shirin Sinha', studentLoginId: '1001', roomId: 8, roomNumber: 'B201', hostelName: 'Girls Hostel B', hostelBlock: 'Block B', allocatedDate: '2026-08-25', status: 'ACTIVE', statusDisplay: 'Active', remarks: '' }
+                ];
+                setAllocations(mockAllocations);
+            }
+        };
+
+        const fetchMyAllocation = async () => {
+            if (!userId) return;
+            try {
+                const res = await api.get(`/hostel/allocations/student/${userId}`);
+                if (res.data) {
+                    setMyAllocation(res.data);
+                    console.log('🏠 My allocation:', res.data);
+                } else {
+                    setMyAllocation(null);
+                }
+            } catch (err) {
+                console.error('Failed to fetch my allocation:', err);
+                // For demo, use mock allocation for Shirin
+                if (name === 'Shirin Sinha' || userId === '1') {
+                    const mockAllocation = {
+                        id: 1,
+                        studentId: 1,
+                        studentName: 'Shirin Sinha',
+                        studentLoginId: '1001',
+                        roomId: 8,
+                        roomNumber: 'B201',
+                        hostelName: 'Girls Hostel B',
+                        hostelBlock: 'Block B',
+                        allocatedDate: '2026-08-25',
+                        status: 'ACTIVE',
+                        statusDisplay: 'Active',
+                        remarks: ''
+                    };
+                    setMyAllocation(mockAllocation);
+                }
+            }
+        };
+
+        const fetchMaintenanceRequests = async () => {
+            try {
+                const endpoint = isAdmin ? '/hostel/maintenance/all' : '/hostel/maintenance/my';
+                const res = await api.get(endpoint);
+                setMaintenanceRequests(res.data || []);
+                console.log('🔧 Maintenance requests loaded:', res.data);
+            } catch (err) {
+                console.error('Failed to fetch maintenance requests:', err);
+                const mockRequests = [
+                    { id: 1, title: 'AC Not Working', description: 'The AC in room B201 is not cooling properly.', category: 'AC', priority: 'HIGH', status: 'PENDING', statusDisplay: 'Pending', reportedById: 1, reportedByName: 'Shirin Sinha', roomId: 8, roomNumber: 'B201', createdAt: '2026-08-21' }
+                ];
+                setMaintenanceRequests(mockRequests);
+            }
+        };
+
+        const fetchRules = async () => {
+            try {
+                let hostelId = 1;
+                if (myAllocation && myAllocation.hostelName) {
+                    const hostel = hostels.find(h => h.name === myAllocation.hostelName);
+                    if (hostel) hostelId = hostel.id;
+                }
+                const res = await api.get(`/hostel/rules/hostel/${hostelId}`);
+                setRules(res.data || []);
+                console.log('📋 Rules loaded:', res.data);
+            } catch (err) {
+                console.error('Failed to fetch rules:', err);
+                const mockRules = [
+                    { id: 1, ruleText: 'Girls hostel has a strict 9 PM curfew.', category: 'Security', priority: 1, hostelId: 2 },
+                    { id: 2, ruleText: 'No male visitors allowed inside the hostel premises.', category: 'Security', priority: 1, hostelId: 2 },
+                    { id: 3, ruleText: 'Maintain cleanliness in common areas.', category: 'Cleanliness', priority: 2, hostelId: 2 },
+                    { id: 4, ruleText: 'Report any maintenance issues to the warden immediately.', category: 'General', priority: 3, hostelId: 2 },
+                    { id: 5, ruleText: 'Do not share room keys with anyone.', category: 'Security', priority: 2, hostelId: 2 },
+                    { id: 6, ruleText: 'All visitors must sign in at the guard desk.', category: 'Security', priority: 1, hostelId: 2 }
+                ];
+                setRules(mockRules);
+            }
+        };
+
+        const fetchStats = async () => {
+            if (!isAdmin) return;
+            try {
+                const res = await api.get('/hostel/dashboard-stats');
+                setStats(res.data);
+                console.log('📊 Stats loaded:', res.data);
+            } catch (err) {
+                console.error('Failed to fetch stats:', err);
+                setStats({
+                    totalHostels: 3,
+                    activeHostels: 3,
+                    totalRooms: 13,
+                    availableRooms: 11,
+                    occupiedRooms: 2,
+                    maintenanceRooms: 0,
+                    activeAllocations: 1,
+                    totalAllocations: 1,
+                    pendingMaintenance: 1,
+                    inProgressMaintenance: 0,
+                    resolvedMaintenance: 0,
+                    totalMaintenance: 1
+                });
+            }
+        };
+
+        // ===== HANDLE CREATE/UPDATE =====
+        const handleCreateHostel = async (e) => {
+            e.preventDefault();
+            setLoading(true);
+            try {
+                await api.post('/hostel/hostels', hostelForm);
+                showMessage('✅ Hostel created successfully!', 'success');
+                setShowHostelModal(false);
+                setHostelForm({ name: '', block: '', totalFloors: '', address: '', contactNumber: '', email: '', description: '', wardenName: '', wardenPhone: '', wardenEmail: '' });
+                await fetchHostels();
+            } catch (err) {
+                const newHostel = { id: Date.now(), ...hostelForm, isActive: true };
+                setHostels(prev => [...prev, newHostel]);
+                setShowHostelModal(false);
+                setHostelForm({ name: '', block: '', totalFloors: '', address: '', contactNumber: '', email: '', description: '', wardenName: '', wardenPhone: '', wardenEmail: '' });
+                showMessage('✅ Hostel added locally!', 'success');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        const handleCreateRoom = async (e) => {
+            e.preventDefault();
+            setLoading(true);
+            try {
+                await api.post(`/hostel/rooms?hostelId=${selectedHostel || 1}`, roomForm);
+                showMessage('✅ Room created successfully!', 'success');
+                setShowRoomModal(false);
+                setRoomForm({ roomNumber: '', floor: '', wing: 'A', roomType: 'SINGLE_BED', bedType: 'SINGLE_BED', totalRooms: 1, capacity: 1, attachedBathrooms: 1, attachedWashrooms: 1, rentPerMonth: '', description: '', facilities: [], additionalAmenities: '', roomSize: '', hasBalcony: false, hasKitchen: false, hasLivingRoom: false, furnishedType: 'Fully' });
+                await fetchRooms();
+            } catch (err) {
+                const newRoom = { id: Date.now(), ...roomForm, status: 'AVAILABLE', statusDisplay: 'Available', hostelId: selectedHostel || 1 };
+                setRooms(prev => [...prev, newRoom]);
+                setShowRoomModal(false);
+                setRoomForm({ roomNumber: '', floor: '', wing: 'A', roomType: 'SINGLE_BED', bedType: 'SINGLE_BED', totalRooms: 1, capacity: 1, attachedBathrooms: 1, attachedWashrooms: 1, rentPerMonth: '', description: '', facilities: [], additionalAmenities: '', roomSize: '', hasBalcony: false, hasKitchen: false, hasLivingRoom: false, furnishedType: 'Fully' });
+                showMessage('✅ Room added locally!', 'success');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        const handleCreateMaintenance = async (e) => {
+            e.preventDefault();
+            setLoading(true);
+            try {
+                await api.post('/hostel/maintenance', maintenanceForm);
+                showMessage('✅ Maintenance request created!', 'success');
+                setShowMaintenanceModal(false);
+                setMaintenanceForm({ title: '', description: '', category: 'Plumbing', priority: 'MEDIUM' });
+                await fetchMaintenanceRequests();
+            } catch (err) {
+                const newRequest = { id: Date.now(), ...maintenanceForm, status: 'PENDING', statusDisplay: 'Pending', reportedById: userId, reportedByName: name, createdAt: new Date().toISOString() };
+                setMaintenanceRequests(prev => [...prev, newRequest]);
+                setShowMaintenanceModal(false);
+                setMaintenanceForm({ title: '', description: '', category: 'Plumbing', priority: 'MEDIUM' });
+                showMessage('✅ Maintenance request added locally!', 'success');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        const handleCreateRule = async (e) => {
+            e.preventDefault();
+            setLoading(true);
+            try {
+                await api.post(`/hostel/rules?hostelId=${selectedHostel || 1}`, ruleForm);
+                showMessage('✅ Rule added successfully!', 'success');
+                setShowRuleModal(false);
+                setRuleForm({ ruleText: '', category: 'General', priority: 3 });
+                await fetchRules();
+            } catch (err) {
+                const newRule = { id: Date.now(), ...ruleForm, hostelId: selectedHostel || 1 };
+                setRules(prev => [...prev, newRule]);
+                setShowRuleModal(false);
+                setRuleForm({ ruleText: '', category: 'General', priority: 3 });
+                showMessage('✅ Rule added locally!', 'success');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        const handleUpdateMaintenanceStatus = async (requestId, status) => {
+            setLoading(true);
+            try {
+                await api.put(`/hostel/maintenance/${requestId}/status?status=${status}`);
+                showMessage(`✅ Status updated to ${status}!`, 'success');
+                await fetchMaintenanceRequests();
+            } catch (err) {
+                setMaintenanceRequests(prev => prev.map(r =>
+                    r.id === requestId ? { ...r, status: status, statusDisplay: status } : r
+                ));
+                showMessage(`✅ Status updated locally!`, 'success');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        const showMessage = (text, type) => {
+            setMessage({ text, type });
+            setTimeout(() => setMessage({ text: '', type: '' }), 4000);
+        };
+
+        const handleLogout = () => {
+            localStorage.clear();
+            window.location.href = 'index.html';
+        };
+
+        const toggleTheme = () => setIsDarkMode(!isDarkMode);
+
+        // ===== LOAD DATA =====
+        useEffect(() => {
+            const loadData = async () => {
+                await Promise.all([
+                    fetchHostels(),
+                    fetchRooms(),
+                    fetchAllocations(),
+                    fetchMyAllocation(),
+                    fetchMaintenanceRequests(),
+                    fetchRules(),
+                    fetchStats()
+                ]);
+                setLoading(false);
+            };
+            loadData();
+
+            if (isDarkMode) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        }, []);
+
+        useEffect(() => {
+            if (isDarkMode) {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+            }
+        }, [isDarkMode]);
+
+        // ==================== RENDER FUNCTIONS ====================
+
+        const renderStats = () => {
+            if (!stats || !isAdmin) return null;
+            return (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div className="stat-card border-l-4 border-blue-500">
+                        <p className="stat-label">Total Hostels</p>
+                        <p className="stat-value">{stats.totalHostels}</p>
+                        <p className="stat-sub">{stats.activeHostels} active</p>
+                    </div>
+                    <div className="stat-card border-l-4 border-green-500">
+                        <p className="stat-label">Rooms</p>
+                        <p className="stat-value">{stats.totalRooms}</p>
+                        <p className="stat-sub">{stats.availableRooms} available</p>
+                    </div>
+                    <div className="stat-card border-l-4 border-purple-500">
+                        <p className="stat-label">Allocations</p>
+                        <p className="stat-value">{stats.activeAllocations}</p>
+                        <p className="stat-sub">Active allocations</p>
+                    </div>
+                    <div className="stat-card border-l-4 border-yellow-500">
+                        <p className="stat-label">Maintenance</p>
+                        <p className="stat-value">{stats.pendingMaintenance}</p>
+                        <p className="stat-sub">Pending requests</p>
+                    </div>
+                </div>
+            );
+        };
+
+        // ===== RENDER HOSTELS FOR ADMIN =====
+        const renderHostels = () => {
+            if (!isAdmin) return null;
+            return (
+                <div className="card-modern mb-6">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-gray-800 dark:text-white font-bold">🏠 Hostels</h3>
+                        <button onClick={() => setShowHostelModal(true)} className="btn-primary text-sm py-1 px-3">+ Add Hostel</button>
+                    </div>
+                    {hostels.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500 dark:text-gray-400">No hostels available</div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {hostels.map(hostel => {
+                                const roomCount = rooms.filter(r => r.hostelId === hostel.id).length;
+                                const availableCount = rooms.filter(r => r.hostelId === hostel.id && r.status === 'AVAILABLE').length;
+                                const isGirlsHostel = hostel.name && hostel.name.toLowerCase().includes('girls');
+
+                                return (
+                                    <div key={hostel.id} className={`p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border-l-4 ${isGirlsHostel ? 'border-pink-500' : 'border-blue-500'}`}>
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <h4 className="font-bold text-gray-800 dark:text-white">
+                                                    {hostel.name}
+                                                    {isGirlsHostel && <span className="ml-2 text-xs bg-pink-100 dark:bg-pink-900/30 text-pink-700 dark:text-pink-400 px-2 py-0.5 rounded-full">👩 Girls</span>}
+                                                </h4>
+                                                <p className="text-sm text-gray-600 dark:text-gray-300">{hostel.block} • {hostel.totalFloors} floors</p>
+                                            </div>
+                                            <span className={`text-xs px-2 py-0.5 rounded-full ${hostel.isActive ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'}`}>
+                                                {hostel.isActive ? 'Active' : 'Inactive'}
+                                            </span>
+                                        </div>
+                                        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{hostel.address}</p>
+                                        <div className="flex gap-3 mt-2 text-xs text-gray-600 dark:text-gray-300">
+                                            <span>🏢 {roomCount} rooms</span>
+                                            <span>✅ {availableCount} available</span>
+                                        </div>
+                                        {hostel.wardenName && (
+                                            <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                                👨‍🏫 Warden: {hostel.wardenName}
+                                            </div>
+                                        )}
+                                        <div className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                            📞 {hostel.contactNumber}
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // ===== RENDER ROOMS WITH GENDER FILTERING =====
+        const renderRooms = () => {
+            // For students: filter rooms based on their allocated hostel
+            let filteredRooms = rooms;
+
+            if (!isAdmin) {
+                // If student has an allocation, only show rooms from THEIR hostel
+                if (myAllocation && myAllocation.hostelName) {
+                    filteredRooms = rooms.filter(r =>
+                        r.hostelName === myAllocation.hostelName &&
+                        r.status === 'AVAILABLE'
+                    );
+                } else {
+                    // If no allocation, show all available rooms
+                    filteredRooms = rooms.filter(r => r.status === 'AVAILABLE');
+                }
+            }
+
+            return (
+                <div className="card-modern mb-6">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-gray-800 dark:text-white font-bold">
+                            🛏️ {isAdmin ? 'All Rooms' : 'Available Rooms'}
+                            {!isAdmin && myAllocation && ` in ${myAllocation.hostelName}`}
+                        </h3>
+                        {isAdmin && <button onClick={() => setShowRoomModal(true)} className="btn-primary text-sm py-1 px-3">+ Add Room</button>}
+                    </div>
+                    {filteredRooms.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                            {!isAdmin && myAllocation ?
+                                `No available rooms in ${myAllocation.hostelName}` :
+                                'No rooms available'}
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {filteredRooms.map(room => {
+                                const statusColors = {
+                                    'AVAILABLE': 'badge-available',
+                                    'OCCUPIED': 'badge-occupied',
+                                    'MAINTENANCE': 'badge-maintenance',
+                                    'RESERVED': 'badge-reserved'
+                                };
+                                const isGirlsRoom = room.hostelName && room.hostelName.toLowerCase().includes('girls');
+
+                                return (
+                                    <div key={room.id} className={`room-card p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border-l-4 ${isGirlsRoom ? 'border-pink-500' : 'border-blue-500'}`}>
+                                        <div className="flex justify-between items-start">
+                                            <div>
+                                                <h4 className="font-bold text-gray-800 dark:text-white">{room.roomNumber}</h4>
+                                                {isGirlsRoom && <span className="text-xs text-pink-600 dark:text-pink-400 ml-1">👩 Girls</span>}
+                                            </div>
+                                            <span className={`badge ${statusColors[room.status] || 'badge-available'}`}>{room.statusDisplay || room.status}</span>
+                                        </div>
+                                        <p className="text-sm text-gray-600 dark:text-gray-300">{room.roomTypeDisplay || room.roomType}</p>
+                                        <p className="text-sm text-gray-500 dark:text-gray-400">🏢 {room.hostelName} • {room.hostelBlock}</p>
+                                        <div className="flex flex-wrap gap-1 mt-2">
+                                            {room.facilities && room.facilities.slice(0, 4).map((f, i) => (
+                                                <span key={i} className={`facility-tag facility-tag-${f.toLowerCase()}`}>{f}</span>
+                                            ))}
+                                            {room.facilities && room.facilities.length > 4 && (
+                                                <span className="text-xs text-gray-500 dark:text-gray-400">+{room.facilities.length - 4} more</span>
+                                            )}
+                                        </div>
+                                        <div className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                                            <span>₹{room.rentPerMonth}/month • {room.capacity} seats</span>
+                                            <span className="ml-2 text-gray-500 dark:text-gray-400">({room.availableSeats} available)</span>
+                                        </div>
+                                        {!isAdmin && room.status === 'AVAILABLE' && (
+                                            <button className="btn-success text-sm py-1 px-3 mt-2">Request Allocation</button>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // ===== RENDER MY ROOM WITH WARDEN AND MESS MENU =====
+        const renderMyRoom = () => {
+            if (isAdmin || !myAllocation) return null;
+
+            const isGirlsHostel = myAllocation.hostelName && myAllocation.hostelName.toLowerCase().includes('girls');
+
+            // Find the hostel details
+            const hostel = hostels.find(h => h.name === myAllocation.hostelName);
+
+            // Get today's mess menu
+            const today = new Date().toLocaleString('en-US', { weekday: 'long' });
+            const todayMenu = MOCK_MESS_MENU[today] || MOCK_MESS_MENU['Monday'];
+
+            return (
+                <div className="card-modern mb-6 border-l-4 border-green-500">
+                    <div className="flex justify-between items-start mb-4">
+                        <h3 className="text-gray-800 dark:text-white font-bold">🏠 My Room</h3>
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${isGirlsHostel ? 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}`}>
+                            {isGirlsHostel ? '👩 Girls Hostel' : '👨 Boys Hostel'}
+                        </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">Room Number</p>
+                                    <p className="font-bold text-gray-800 dark:text-white text-lg">{myAllocation.roomNumber}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">Hostel</p>
+                                    <p className="font-bold text-gray-800 dark:text-white">{myAllocation.hostelName}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">Block</p>
+                                    <p className="font-bold text-gray-800 dark:text-white">{myAllocation.hostelBlock}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">Allocated Date</p>
+                                    <p className="font-bold text-gray-800 dark:text-white">{myAllocation.allocatedDate}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">Status</p>
+                                    <span className="badge badge-resolved">{myAllocation.statusDisplay || myAllocation.status}</span>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">Room Type</p>
+                                    <p className="font-bold text-gray-800 dark:text-white">Double Bed</p>
+                                </div>
+                            </div>
+
+                            {/* Warden Information */}
+                            {(hostel || isGirlsHostel) && (
+                                <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                                    <p className="text-xs font-semibold text-gray-700 dark:text-gray-300">👨‍🏫 Warden Information</p>
+                                    <p className="text-sm text-gray-800 dark:text-white font-medium">
+                                        {hostel?.wardenName || 'Dr. Priya Sharma'}
+                                    </p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">📞 {hostel?.wardenPhone || '9876543202'}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">✉️ {hostel?.wardenEmail || 'psharma@campus.edu'}</p>
+                                </div>
+                            )}
+                        </div>
+
+                        <div>
+                            <div className="flex justify-between items-center mb-2">
+                                <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">🍽️ Today's Mess Menu</h4>
+                                <button
+                                    onClick={() => setShowMessMenuModal(true)}
+                                    className="text-xs text-blue-600 dark:text-blue-400 hover:underline"
+                                >
+                                    View Full Week →
+                                </button>
+                            </div>
+                            <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3">
+                                <div className="text-xs text-gray-500 dark:text-gray-400 mb-1">{today}</div>
+                                <div className="space-y-2">
+                                    <div className="mess-menu-item text-sm">
+                                        <span className="font-medium text-gray-700 dark:text-gray-300">Breakfast</span>
+                                        <span className="text-gray-600 dark:text-gray-400">{todayMenu.breakfast}</span>
+                                    </div>
+                                    <div className="mess-menu-item text-sm">
+                                        <span className="font-medium text-gray-700 dark:text-gray-300">Lunch</span>
+                                        <span className="text-gray-600 dark:text-gray-400">{todayMenu.lunch}</span>
+                                    </div>
+                                    <div className="mess-menu-item text-sm">
+                                        <span className="font-medium text-gray-700 dark:text-gray-300">Dinner</span>
+                                        <span className="text-gray-600 dark:text-gray-400">{todayMenu.dinner}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button onClick={() => setShowMaintenanceModal(true)} className="btn-warning text-sm py-1.5 px-3 mt-3 w-full">
+                                🔧 Raise Maintenance
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // ===== RENDER MAINTENANCE =====
+        const renderMaintenance = () => {
+            const statusColors = {
+                'PENDING': 'badge-pending',
+                'IN_PROGRESS': 'badge-inprogress',
+                'RESOLVED': 'badge-resolved',
+                'REJECTED': 'badge-rejected'
+            };
+            return (
+                <div className="card-modern mb-6">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-gray-800 dark:text-white font-bold">🔧 {isAdmin ? 'All Maintenance Requests' : 'My Maintenance Requests'}</h3>
+                        {!isAdmin && <button onClick={() => setShowMaintenanceModal(true)} className="btn-warning text-sm py-1 px-3">+ Raise Request</button>}
+                    </div>
+                    {maintenanceRequests.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500 dark:text-gray-400">No maintenance requests</div>
+                    ) : (
+                        <div className="space-y-3">
+                            {maintenanceRequests.map(req => (
+                                <div key={req.id} className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                    <div className="flex justify-between items-start flex-wrap gap-2">
+                                        <div>
+                                            <h4 className="font-bold text-gray-800 dark:text-white">{req.title}</h4>
+                                            <p className="text-sm text-gray-600 dark:text-gray-300">{req.description}</p>
+                                            <div className="flex flex-wrap gap-2 mt-1 text-xs">
+                                                <span className="bg-gray-200 dark:bg-gray-600 px-2 py-0.5 rounded-full">{req.category}</span>
+                                                <span className={`px-2 py-0.5 rounded-full ${req.priority === 'HIGH' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : req.priority === 'MEDIUM' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'}`}>
+                                                    {req.priority}
+                                                </span>
+                                                <span className={`badge ${statusColors[req.status] || 'badge-pending'}`}>{req.statusDisplay || req.status}</span>
+                                            </div>
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">📅 {new Date(req.createdAt).toLocaleDateString()}</p>
+                                        </div>
+                                        {isAdmin && req.status === 'PENDING' && (
+                                            <div className="flex gap-1">
+                                                <button onClick={() => handleUpdateMaintenanceStatus(req.id, 'IN_PROGRESS')} className="btn-warning text-xs py-0.5 px-2">Start</button>
+                                                <button onClick={() => handleUpdateMaintenanceStatus(req.id, 'RESOLVED')} className="btn-success text-xs py-0.5 px-2">Resolve</button>
+                                                <button onClick={() => handleUpdateMaintenanceStatus(req.id, 'REJECTED')} className="btn-danger text-xs py-0.5 px-2">Reject</button>
+                                            </div>
+                                        )}
+                                        {isAdmin && req.status === 'IN_PROGRESS' && (
+                                            <button onClick={() => handleUpdateMaintenanceStatus(req.id, 'RESOLVED')} className="btn-success text-xs py-0.5 px-2">Mark Resolved</button>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        // ===== RENDER RULES =====
+        const renderRules = () => {
+            return (
+                <div className="card-modern">
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-gray-800 dark:text-white font-bold">📋 Hostel Rules</h3>
+                        {isAdmin && <button onClick={() => setShowRuleModal(true)} className="btn-primary text-sm py-1 px-3">+ Add Rule</button>}
+                    </div>
+                    {rules.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500 dark:text-gray-400">No rules defined</div>
+                    ) : (
+                        <ul className="space-y-2">
+                            {rules.map(rule => (
+                                <li key={rule.id} className="flex items-start gap-2 p-2 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                    <span className="text-lg">📌</span>
+                                    <div>
+                                        <p className="text-gray-800 dark:text-white">{rule.ruleText}</p>
+                                        <div className="flex gap-2 mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                            <span>🏷️ {rule.category}</span>
+                                            <span>Priority: {rule.priority}</span>
+                                        </div>
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </div>
+            );
+        };
+
+        // ===== RENDER MESS MENU MODAL =====
+        const renderMessMenuModal = () => {
+            const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay">
+                    <div className="modal-content max-w-3xl">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-bold text-gray-800 dark:text-white">🍽️ Weekly Mess Menu</h2>
+                            <button onClick={() => setShowMessMenuModal(false)} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
+                        </div>
+                        <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+                            {days.map(day => {
+                                const menu = MOCK_MESS_MENU[day];
+                                return (
+                                    <div key={day} className="p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                        <h4 className="font-bold text-gray-800 dark:text-white">{day}</h4>
+                                        <div className="grid grid-cols-3 gap-2 mt-1 text-sm">
+                                            <div>
+                                                <span className="text-xs text-gray-500 dark:text-gray-400">Breakfast</span>
+                                                <p className="text-gray-700 dark:text-gray-300">{menu.breakfast}</p>
+                                            </div>
+                                            <div>
+                                                <span className="text-xs text-gray-500 dark:text-gray-400">Lunch</span>
+                                                <p className="text-gray-700 dark:text-gray-300">{menu.lunch}</p>
+                                            </div>
+                                            <div>
+                                                <span className="text-xs text-gray-500 dark:text-gray-400">Dinner</span>
+                                                <p className="text-gray-700 dark:text-gray-300">{menu.dinner}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <button onClick={() => setShowMessMenuModal(false)} className="w-full btn-primary py-2 mt-4">Close</button>
+                    </div>
+                </div>
+            );
+        };
+
+        const renderContent = () => {
+            if (loading) {
+                return (
+                    <div className="flex justify-center items-center h-64">
+                        <div className="text-gray-500 dark:text-gray-400 text-xl">Loading...</div>
+                    </div>
+                );
+            }
+
+            return (
+                <div>
+                    <div className="welcome-gradient rounded-2xl p-6 text-white mb-6 shadow-lg">
+                        <div className="flex justify-between items-center flex-wrap gap-3">
+                            <div>
+                                <h2 className="text-2xl font-bold welcome-text">🏠 Hostel Management</h2>
+                                <p className="welcome-sub text-sm">
+                                    {isAdmin ? 'Manage hostels, rooms, allocations, and maintenance' : 'View your room, raise maintenance requests, and view hostel rules'}
+                                </p>
+                            </div>
+                            <div className="flex gap-2">
+                                <span className="bg-white/20 px-3 py-1 rounded-full text-xs">
+                                    {isAdmin ? 'Admin' : 'Student'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {message.text && (
+                        <div className={`mb-4 p-3 rounded-lg border-l-4 ${message.type === 'success' ? 'bg-green-100 dark:bg-green-900/30 border-green-500 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/30 border-red-500 text-red-700 dark:text-red-400'}`}>
+                            {message.text}
+                        </div>
+                    )}
+
+                    {isAdmin && renderStats()}
+                    {!isAdmin && renderMyRoom()}
+                    {isAdmin && renderHostels()}
+                    {renderRooms()}
+                    {renderMaintenance()}
+                    {renderRules()}
+                </div>
+            );
+        };
+
+        const menuItems = [
+            { id: 'dashboard', icon: '🏠', label: 'Dashboard' },
+            { id: 'hostels', icon: '🏢', label: 'Hostels' },
+            { id: 'rooms', icon: '🛏️', label: 'Rooms' },
+            { id: 'allocations', icon: '📋', label: 'Allocations' },
+            { id: 'maintenance', icon: '🔧', label: 'Maintenance' },
+            { id: 'rules', icon: '📋', label: 'Rules' },
+        ];
+
+        const [activeSidebarTab, setActiveSidebarTab] = useState('dashboard');
+
+        // ===== MODAL RENDERERS =====
+        const renderHostelModal = () => (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay">
+                <div className="modal-content max-w-2xl">
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-bold text-gray-800 dark:text-white">🏠 Add Hostel</h2>
+                        <button onClick={() => setShowHostelModal(false)} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
+                    </div>
+                    <form onSubmit={handleCreateHostel}>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Name *</label><input type="text" value={hostelForm.name} onChange={(e) => setHostelForm({...hostelForm, name: e.target.value})} className="input-field" required /></div>
+                            <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Block *</label><input type="text" value={hostelForm.block} onChange={(e) => setHostelForm({...hostelForm, block: e.target.value})} className="input-field" required /></div>
+                            <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Total Floors</label><input type="number" value={hostelForm.totalFloors} onChange={(e) => setHostelForm({...hostelForm, totalFloors: e.target.value})} className="input-field" /></div>
+                            <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Contact Number</label><input type="tel" value={hostelForm.contactNumber} onChange={(e) => setHostelForm({...hostelForm, contactNumber: e.target.value})} className="input-field" /></div>
+                            <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Email</label><input type="email" value={hostelForm.email} onChange={(e) => setHostelForm({...hostelForm, email: e.target.value})} className="input-field" /></div>
+                            <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Warden Name</label><input type="text" value={hostelForm.wardenName} onChange={(e) => setHostelForm({...hostelForm, wardenName: e.target.value})} className="input-field" /></div>
+                            <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Warden Phone</label><input type="tel" value={hostelForm.wardenPhone} onChange={(e) => setHostelForm({...hostelForm, wardenPhone: e.target.value})} className="input-field" /></div>
+                        </div>
+                        <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Address</label><input type="text" value={hostelForm.address} onChange={(e) => setHostelForm({...hostelForm, address: e.target.value})} className="input-field" /></div>
+                        <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Description</label><textarea value={hostelForm.description} onChange={(e) => setHostelForm({...hostelForm, description: e.target.value})} rows="2" className="input-field" /></div>
+                        <button type="submit" disabled={loading} className="w-full btn-primary py-2">{loading ? 'Creating...' : '🏠 Create Hostel'}</button>
+                    </form>
+                </div>
+            </div>
+        );
+
+        const renderRoomModal = () => (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay">
+                <div className="modal-content max-w-2xl">
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-bold text-gray-800 dark:text-white">🛏️ Add Room</h2>
+                        <button onClick={() => setShowRoomModal(false)} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
+                    </div>
+                    <form onSubmit={handleCreateRoom}>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Room Number *</label><input type="text" value={roomForm.roomNumber} onChange={(e) => setRoomForm({...roomForm, roomNumber: e.target.value})} className="input-field" required /></div>
+                            <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Floor</label><input type="number" value={roomForm.floor} onChange={(e) => setRoomForm({...roomForm, floor: e.target.value})} className="input-field" /></div>
+                            <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Wing</label><select value={roomForm.wing} onChange={(e) => setRoomForm({...roomForm, wing: e.target.value})} className="input-field"><option value="A">A</option><option value="B">B</option><option value="C">C</option><option value="D">D</option></select></div>
+                            <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Room Type</label><select value={roomForm.roomType} onChange={(e) => setRoomForm({...roomForm, roomType: e.target.value})} className="input-field">{ROOM_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select></div>
+                            <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Bed Type</label><select value={roomForm.bedType} onChange={(e) => setRoomForm({...roomForm, bedType: e.target.value})} className="input-field">{BED_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}</select></div>
+                            <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Capacity</label><input type="number" value={roomForm.capacity} onChange={(e) => setRoomForm({...roomForm, capacity: e.target.value})} className="input-field" /></div>
+                            <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Rent Per Month</label><input type="number" value={roomForm.rentPerMonth} onChange={(e) => setRoomForm({...roomForm, rentPerMonth: e.target.value})} className="input-field" /></div>
+                            <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Total Rooms (for apartments)</label><input type="number" value={roomForm.totalRooms} onChange={(e) => setRoomForm({...roomForm, totalRooms: e.target.value})} className="input-field" /></div>
+                            <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Attached Bathrooms</label><input type="number" value={roomForm.attachedBathrooms} onChange={(e) => setRoomForm({...roomForm, attachedBathrooms: e.target.value})} className="input-field" /></div>
+                            <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Attached Washrooms</label><input type="number" value={roomForm.attachedWashrooms} onChange={(e) => setRoomForm({...roomForm, attachedWashrooms: e.target.value})} className="input-field" /></div>
+                        </div>
+                        <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Description</label><textarea value={roomForm.description} onChange={(e) => setRoomForm({...roomForm, description: e.target.value})} rows="2" className="input-field" /></div>
+                        <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Facilities</label>
+                            <div className="grid grid-cols-3 gap-1">
+                                {FACILITIES.map(f => (
+                                    <label key={f.value} className="flex items-center text-sm">
+                                        <input type="checkbox" checked={roomForm.facilities.includes(f.value)} onChange={(e) => {
+                                            if (e.target.checked) setRoomForm({...roomForm, facilities: [...roomForm.facilities, f.value]});
+                                            else setRoomForm({...roomForm, facilities: roomForm.facilities.filter(x => x !== f.value)});
+                                        }} className="mr-1" />
+                                        {f.label}
+                                    </label>
+                                ))}
+                            </div>
+                        </div>
+                        <button type="submit" disabled={loading} className="w-full btn-primary py-2">{loading ? 'Creating...' : '🛏️ Create Room'}</button>
+                    </form>
+                </div>
+            </div>
+        );
+
+        const renderMaintenanceModal = () => (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay">
+                <div className="modal-content max-w-2xl">
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-bold text-gray-800 dark:text-white">🔧 Raise Maintenance Request</h2>
+                        <button onClick={() => setShowMaintenanceModal(false)} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
+                    </div>
+                    <form onSubmit={handleCreateMaintenance}>
+                        <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Title *</label><input type="text" value={maintenanceForm.title} onChange={(e) => setMaintenanceForm({...maintenanceForm, title: e.target.value})} className="input-field" required /></div>
+                        <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Description *</label><textarea value={maintenanceForm.description} onChange={(e) => setMaintenanceForm({...maintenanceForm, description: e.target.value})} rows="3" className="input-field" required /></div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Category</label><select value={maintenanceForm.category} onChange={(e) => setMaintenanceForm({...maintenanceForm, category: e.target.value})} className="input-field">{MAINTENANCE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}</select></div>
+                            <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Priority</label><select value={maintenanceForm.priority} onChange={(e) => setMaintenanceForm({...maintenanceForm, priority: e.target.value})} className="input-field"><option value="HIGH">🔴 High</option><option value="MEDIUM">🟡 Medium</option><option value="LOW">🟢 Low</option></select></div>
+                        </div>
+                        <button type="submit" disabled={loading} className="w-full btn-warning py-2">{loading ? 'Submitting...' : '🔧 Submit Request'}</button>
+                    </form>
+                </div>
+            </div>
+        );
+
+        const renderRuleModal = () => (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay">
+                <div className="modal-content max-w-2xl">
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-bold text-gray-800 dark:text-white">📋 Add Rule</h2>
+                        <button onClick={() => setShowRuleModal(false)} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
+                    </div>
+                    <form onSubmit={handleCreateRule}>
+                        <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Rule Text *</label><input type="text" value={ruleForm.ruleText} onChange={(e) => setRuleForm({...ruleForm, ruleText: e.target.value})} className="input-field" required /></div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Category</label><select value={ruleForm.category} onChange={(e) => setRuleForm({...ruleForm, category: e.target.value})} className="input-field"><option value="General">General</option><option value="Security">Security</option><option value="Cleanliness">Cleanliness</option><option value="Conduct">Conduct</option><option value="Other">Other</option></select></div>
+                            <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Priority (1-5)</label><input type="number" value={ruleForm.priority} onChange={(e) => setRuleForm({...ruleForm, priority: e.target.value})} className="input-field" min="1" max="5" /></div>
+                        </div>
+                        <button type="submit" disabled={loading} className="w-full btn-primary py-2">{loading ? 'Adding...' : '📋 Add Rule'}</button>
+                    </form>
+                </div>
+            </div>
+        );
+
+        return (
+            <div className={`${isDarkMode ? 'dark' : ''}`}>
+                <button className="sidebar-toggle-mobile" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>☰</button>
+                <div className={`sidebar-overlay ${isSidebarOpen ? 'active' : ''}`} onClick={() => setIsSidebarOpen(false)} />
+
+                <div className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''} ${isSidebarOpen ? 'open' : ''}`}>
+                    <div className="sidebar-header">
+                        <span className="logo-text">🏠 Hostel</span>
+                        <button className="sidebar-toggle-btn" onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}>
+                            {isSidebarCollapsed ? '☰' : '◀'}
+                        </button>
+                    </div>
+
+                    <div className="sidebar-menu">
+                        <div className="sidebar-menu-title">Main</div>
+                        {menuItems.map(item => (
+                            <button
+                                key={item.id}
+                                className={`sidebar-item ${activeSidebarTab === item.id ? 'active' : ''}`}
+                                onClick={() => { setActiveSidebarTab(item.id); setIsSidebarOpen(false); }}
+                            >
+                                <span className="icon">{item.icon}</span>
+                                <span className="sidebar-label">{item.label}</span>
+                            </button>
+                        ))}
+                        <div className="sidebar-menu-title mt-4">Other</div>
+                        {isAdmin ? (
+                            <a href="admin-dashboard.html" className="sidebar-item">
+                                <span className="icon">🏠</span>
+                                <span className="sidebar-label">Dashboard</span>
+                            </a>
+                        ) : (
+                            <a href="student-dashboard.html" className="sidebar-item">
+                                <span className="icon">🏠</span>
+                                <span className="sidebar-label">Dashboard</span>
+                            </a>
+                        )}
+                    </div>
+
+                    <div className="sidebar-footer">
+                        <div className="sidebar-user">
+                            <div className="sidebar-user-avatar">{name.charAt(0).toUpperCase()}</div>
+                            <div className="sidebar-user-info">
+                                <div className="sidebar-user-name">{name}</div>
+                                <div className="sidebar-user-role">{isAdmin ? 'Admin' : 'Student'}</div>
+                            </div>
+                        </div>
+                        <button className="sidebar-logout" onClick={handleLogout}>
+                            <span className="icon">🚪</span>
+                            <span className="sidebar-logout-text">Logout</span>
+                        </button>
+                        <button className="sidebar-logout mt-1" onClick={toggleTheme}>
+                            <span className="icon">{isDarkMode ? '☀️' : '🌙'}</span>
+                            <span className="sidebar-logout-text">{isDarkMode ? 'Light' : 'Dark'}</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div className="main-content">
+                    {renderContent()}
+                </div>
+
+                {showHostelModal && renderHostelModal()}
+                {showRoomModal && renderRoomModal()}
+                {showMaintenanceModal && renderMaintenanceModal()}
+                {showRuleModal && renderRuleModal()}
+                {showMessMenuModal && renderMessMenuModal()}
+            </div>
+        );
+    }
+
+    ReactDOM.render(<HostelPage />, document.getElementById('root'));
+</script>
 </body>
 </html>

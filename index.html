@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Campus Assistant - Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body class="bg-gradient-to-br from-blue-600 to-purple-600">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const API_BASE_URL = 'http://localhost:8080/api';
+
+        const api = axios.create({
+            baseURL: API_BASE_URL,
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        function LoginPage() {
+            const [email, setEmail] = React.useState('');
+            const [password, setPassword] = React.useState('');
+            const [error, setError] = React.useState('');
+            const [loading, setLoading] = React.useState(false);
+            const [showPassword, setShowPassword] = React.useState(false);
+            const [isRegister, setIsRegister] = React.useState(false);
+            const [role, setRole] = React.useState('STUDENT');
+
+            const handleLogin = async (e) => {
+                e.preventDefault();
+                setError('');
+                setLoading(true);
+
+                try {
+                    const response = await api.post('/auth/login', { email, password });
+                    
+                    localStorage.setItem('token', response.data.token);
+                    localStorage.setItem('userId', response.data.userId);
+                    localStorage.setItem('email', response.data.email);
+                    localStorage.setItem('role', response.data.role);
+                    
+                    // Redirect based on role
+                    const userRole = response.data.role;
+                    if (userRole === 'STUDENT') {
+                        window.location.href = 'student/index.html';
+                    } else if (userRole === 'FACULTY') {
+                        window.location.href = 'faculty/index.html';
+                    } else if (userRole === 'ADMIN') {
+                        window.location.href = 'admin/index.html';
+                    }
+                } catch (err) {
+                    setError(err.response?.data?.message || 'Login failed. Please try again.');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const handleRegister = async (e) => {
+                e.preventDefault();
+                setError('');
+                setLoading(true);
+
+                try {
+                    await api.post('/auth/register', { email, password, role });
+                    setError('');
+                    alert('Registration successful! Please login.');
+                    setEmail('');
+                    setPassword('');
+                    setIsRegister(false);
+                } catch (err) {
+                    setError(err.response?.data?.message || 'Registration failed.');
+                } finally {
+                    setLoading(false);
+                }
+            };
+
+            const fillDemoCredentials = (demoEmail, demoPassword) => {
+                setEmail(demoEmail);
+                setPassword(demoPassword);
+            };
+
+            return (
+                <div className="min-h-screen flex items-center justify-center p-4">
+                    <div className="bg-white rounded-lg shadow-2xl p-8 w-full max-w-md">
+                        <h1 className="text-3xl font-bold text-gray-800 mb-2">Smart Campus</h1>
+                        <p className="text-gray-600 mb-6">Assistant {isRegister ? 'Registration' : 'Login'}</p>
+
+                        {error && (
+                            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                                {error}
+                            </div>
+                        )}
+
+                        <form onSubmit={isRegister ? handleRegister : handleLogin}>
+                            <div className="mb-4">
+                                <label className="block text-gray-700 text-sm font-bold mb-2">Email</label>
+                                <input
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    placeholder="your@email.com"
+                                    required
+                                />
+                            </div>
+
+                            <div className="mb-4">
+                                <label className="block text-gray-700 text-sm font-bold mb-2">Password</label>
+                                <div className="relative">
+                                    <input
+                                        type={showPassword ? "text" : "password"}
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        placeholder="••••••••"
+                                        required
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowPassword(!showPassword)}
+                                        className="absolute right-3 top-2 text-gray-600"
+                                    >
+                                        {showPassword ? '👁️' : '👁️‍🗨️'}
+                                    </button>
+                                </div>
+                            </div>
+
+                            {isRegister && (
+                                <div className="mb-4">
+                                    <label className="block text-gray-700 text-sm font-bold mb-2">Role</label>
+                                    <select
+                                        value={role}
+                                        onChange={(e) => setRole(e.target.value)}
+                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    >
+                                        <option value="STUDENT">Student</option>
+                                        <option value="FACULTY">Faculty</option>
+                                        <option value="ADMIN">Admin</option>
+                                    </select>
+                                </div>
+                            )}
+
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full bg-blue-600 text-white font-bold py-2 rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+                            >
+                                {loading ? 'Processing...' : (isRegister ? 'Register' : 'Login')}
+                            </button>
+                        </form>
+
+                        <div className="mt-4 space-y-2">
+                            <button
+                                type="button"
+                                onClick={() => fillDemoCredentials('shirin@test.com', 'test123')}
+                                className="w-full bg-green-200 text-green-800 font-bold py-2 rounded-lg hover:bg-green-300 text-sm"
+                            >
+                                👨‍🎓 Demo Student
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => fillDemoCredentials('faculty1@campus.com', 'faculty123')}
+                                className="w-full bg-blue-200 text-blue-800 font-bold py-2 rounded-lg hover:bg-blue-300 text-sm"
+                            >
+                                👨‍🏫 Demo Faculty
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => fillDemoCredentials('admin1@campus.com', 'admin1234')}
+                                className="w-full bg-purple-200 text-purple-800 font-bold py-2 rounded-lg hover:bg-purple-300 text-sm"
+                            >
+                                👨‍💼 Demo Admin
+                            </button>
+                        </div>
+
+                        <p className="text-center text-gray-600 mt-6">
+                            {isRegister ? 'Already have an account?' : "Don't have an account?"}{' '}
+                            <button
+                                type="button"
+                                onClick={() => setIsRegister(!isRegister)}
+                                className="text-blue-600 font-bold hover:underline"
+                            >
+                                {isRegister ? 'Login' : 'Register'}
+                            </button>
+                        </p>
+                    </div>
+                </div>
+            );
+        }
+
+        ReactDOM.createRoot(document.getElementById('root')).render(<LoginPage />);
+    </script>
+</body>
+</html>

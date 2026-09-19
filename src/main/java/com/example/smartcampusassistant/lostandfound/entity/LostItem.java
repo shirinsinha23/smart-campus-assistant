@@ -1,4 +1,4 @@
-package com.example.smartcampusassistant.lostandfound;
+package com.example.smartcampusassistant.lostandfound.entity;
 
 import com.example.smartcampusassistant.user.User;
 import jakarta.persistence.*;
@@ -12,56 +12,49 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "lost_items")
 @Data
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder
 public class LostItem {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
     private String title;
-
-    @Column(length = 500)
     private String description;
-
     private String category;
-
     private String imageUrl;
-
-    @Column(nullable = false)
     private String location;
 
-    @Column(nullable = false)
+    @Column(name = "`date`", nullable = false)
     private LocalDateTime date;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(name = "status", nullable = false)
     private ItemStatus status;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "reported_by", nullable = false)
     private User reportedBy;
 
-    @ManyToOne
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "claimed_by")
     private User claimedBy;
 
+    @Column(name = "contact_info")
     private String contactInfo;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
 
     @PrePersist
     protected void onCreate() {
-        this.createdAt = LocalDateTime.now();
-        if (this.date == null) {
-            this.date = LocalDateTime.now();
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
         }
-        if (this.status == null) {
-            this.status = ItemStatus.LOST;
+        if (date == null) {
+            date = LocalDateTime.now();
         }
     }
 }

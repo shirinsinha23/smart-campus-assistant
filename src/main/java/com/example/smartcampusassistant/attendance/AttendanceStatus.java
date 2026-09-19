@@ -1,4 +1,6 @@
 package com.example.smartcampusassistant.attendance;
 
-public class AttendanceStatus {
+public enum AttendanceStatus {
+    PRESENT,
+    ABSENT
 }

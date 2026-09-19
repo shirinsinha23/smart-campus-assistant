@@ -31,3 +31,48 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Environment & Secrets (never commit) ###
+.env
+.env.local
+.env.*.local
+*.env
+!.env.example
+application-local.properties
+application-secret.properties
+*.pem
+*.key
+*.p12
+*.jks
+secrets/
+credentials.json
+
+### Uploads (user files, not source code) ###
+uploads/
+!uploads/.gitkeep
+
+### Logs ###
+*.log
+logs/
+log/
+
+### OS files ###
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+### Local build artifacts ###
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+
+### Misc ###
+*.tmp
+*.bak
+*.swp
+*~
+
+### Maven wrapper (keep the properties, ignore the jar) ###
+.mvn/wrapper/maven-wrapper.properties

@@ -1,5 +1,6 @@
 package com.example.smartcampusassistant.cafeteria.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -18,24 +19,35 @@ public class MealItem {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, length = 100)
+    @Column(nullable = false)
     private String name;
 
-    @Column(length = 500)
     private String description;
 
     @Column(nullable = false)
     private Double price;
 
+    private String category;
+
     @Enumerated(EnumType.STRING)
+    @Column(name = "meal_type")
     private MealType mealType;
 
-    private String category; // VEG, NON_VEG, VEGAN
+    @Column(name = "preparation_time")
+    private Integer preparationTime;
 
-    private String imageUrl;
-
+    @Column(name = "is_available")
     @Builder.Default
     private Boolean isAvailable = true;
 
-    private Integer preparationTime; // in minutes
+    @Column(name = "image_url")
+    private String imageUrl;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "restaurant_id")
+    @JsonIgnore  // ADD THIS to break circular reference
+    private Restaurant restaurant;
+
+    @Column(name = "restaurant_id", insertable = false, updatable = false)
+    private Long restaurantId;
 }

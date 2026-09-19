@@ -1,10 +1,2176 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>$Title$</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>🎓 Student · Smart Campus</title>
+    <link rel="icon" href="data:,">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f1f5f9; }
+        .dark body { background: #0b1120; }
+        .sidebar { position: fixed; left: 0; top: 0; height: 100vh; width: 260px; background: #0f172a; color: #e2e8f0; z-index: 1000; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); overflow-y: auto; overflow-x: hidden; display: flex; flex-direction: column; box-shadow: 4px 0 20px rgba(0,0,0,0.3); }
+        .sidebar::-webkit-scrollbar { width: 4px; }
+        .sidebar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        .sidebar.collapsed { width: 72px; }
+        .sidebar.collapsed .sidebar-label, .sidebar.collapsed .sidebar-user-name, .sidebar.collapsed .sidebar-user-role, .sidebar.collapsed .sidebar-logout-text { display: none; }
+        .sidebar.collapsed .sidebar-item { justify-content: center; padding: 12px; }
+        .sidebar.collapsed .sidebar-item .icon { margin-right: 0; font-size: 1.5rem; }
+        .sidebar.collapsed .sidebar-header .logo-text { display: none; }
+        .sidebar-header { padding: 18px 20px; border-bottom: 1px solid #1e293b; display: flex; align-items: center; justify-content: space-between; min-height: 68px; }
+        .sidebar-header .logo-text { font-size: 1.2rem; font-weight: 700; background: linear-gradient(135deg, #60a5fa, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent; white-space: nowrap; }
+        .sidebar-toggle-btn { background: transparent; border: none; color: #94a3b8; font-size: 1.2rem; cursor: pointer; padding: 4px 8px; border-radius: 6px; transition: 0.2s; }
+        .sidebar-toggle-btn:hover { background: #1e293b; color: white; }
+        .sidebar-menu { flex: 1; padding: 12px 10px; }
+        .sidebar-menu-title { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; color: #64748b; padding: 12px 12px 6px; font-weight: 600; }
+        .sidebar.collapsed .sidebar-menu-title { display: none; }
+        .sidebar-item { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 10px; cursor: pointer; transition: all 0.2s ease; color: #94a3b8; font-size: 0.875rem; font-weight: 500; width: 100%; border: none; background: transparent; text-align: left; white-space: nowrap; overflow: hidden; }
+        .sidebar-item:hover { background: rgba(255,255,255,0.06); color: #f1f5f9; }
+        .sidebar-item.active { background: #3b82f6; color: white; box-shadow: 0 4px 12px rgba(59,130,246,0.3); }
+        .sidebar-item .icon { font-size: 1.2rem; min-width: 28px; text-align: center; }
+        .sidebar-item .sidebar-label { flex: 1; }
+        .sidebar-footer { padding: 16px 14px; border-top: 1px solid #1e293b; margin-top: auto; }
+        .sidebar-user { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,0.04); }
+        .sidebar-user-avatar { width: 36px; height: 36px; border-radius: 50%; background: linear-gradient(135deg, #3b82f6, #8b5cf6); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem; color: white; flex-shrink: 0; }
+        .sidebar-user-name { font-size: 0.875rem; font-weight: 600; color: #f1f5f9; }
+        .sidebar-user-role { font-size: 0.65rem; color: #94a3b8; text-transform: uppercase; }
+        .sidebar-logout { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 10px; cursor: pointer; transition: all 0.2s ease; color: #94a3b8; border: none; background: transparent; width: 100%; font-size: 0.875rem; margin-top: 6px; }
+        .sidebar-logout:hover { background: rgba(239,68,68,0.15); color: #ef4444; }
+        .main-content { margin-left: 260px; min-height: 100vh; background: #f1f5f9; padding: 24px; transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .sidebar.collapsed ~ .main-content { margin-left: 72px; }
+        .dark .sidebar { background: #0b1120; }
+        .dark .sidebar-header { border-color: #1e293b; }
+        .dark .sidebar-footer { border-color: #1e293b; }
+        .dark .sidebar-item:hover { background: rgba(255,255,255,0.04); }
+        .dark .sidebar-item.active { background: #2563eb; }
+        .dark .main-content { background: #0b1120; }
+        .sidebar-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 999; }
+        .sidebar-overlay.active { display: block; }
+        @media (max-width: 768px) {
+            .sidebar { transform: translateX(-100%); width: 280px; }
+            .sidebar.open { transform: translateX(0); }
+            .sidebar.collapsed { width: 280px; }
+            .sidebar.collapsed .sidebar-label, .sidebar.collapsed .sidebar-user-name, .sidebar.collapsed .sidebar-user-role { display: block; }
+            .sidebar.collapsed .sidebar-item { justify-content: flex-start; padding: 10px 14px; }
+            .sidebar.collapsed .sidebar-header .logo-text { display: block; }
+            .main-content { margin-left: 0; padding-top: 16px; }
+            .sidebar.collapsed ~ .main-content { margin-left: 0; }
+            .sidebar-toggle-mobile { display: block !important; position: fixed; top: 12px; left: 12px; z-index: 1001; background: #0f172a; color: white; border: none; padding: 8px 14px; border-radius: 8px; cursor: pointer; font-size: 1.2rem; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+            .dark .sidebar-toggle-mobile { background: #0b1120; }
+        }
+        .sidebar-toggle-mobile { display: none; }
+
+        /* ============================================
+           MODERN CARD STYLES
+           ============================================ */
+        .card-modern {
+            background: #ffffff;
+            border-radius: 20px;
+            padding: 24px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04), 0 8px 24px -8px rgba(15,23,42,0.06);
+            border: 1px solid rgba(226,232,240,0.8);
+            transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+        }
+        .card-modern:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.06), 0 16px 40px -12px rgba(15,23,42,0.12);
+            border-color: rgba(148,163,184,0.4);
+        }
+        .dark .card-modern {
+            background: #182235;
+            border-color: #253450;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -8px rgba(0,0,0,0.4);
+        }
+        .dark .card-modern:hover {
+            border-color: #3b4d6e;
+        }
+
+        /* ============================================
+           MODERN STAT CARDS
+           ============================================ */
+        .stat-card {
+            background: #ffffff;
+            border-radius: 20px;
+            padding: 22px 24px;
+            border: 1px solid rgba(226,232,240,0.8);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+            transition: all 0.25s cubic-bezier(0.4,0,0.2,1);
+            position: relative;
+            overflow: hidden;
+            cursor: default;
+        }
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+            background: currentColor;
+            opacity: 0.9;
+        }
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 32px -8px rgba(15,23,42,0.12);
+        }
+        .dark .stat-card {
+            background: #182235;
+            border-color: #253450;
+        }
+        .dark .stat-card:hover {
+            border-color: #3b4d6e;
+            box-shadow: 0 12px 32px -8px rgba(0,0,0,0.5);
+        }
+
+        .stat-label {
+            color: #64748b;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+        .dark .stat-label { color: #94a3b8; }
+
+        .stat-value {
+            color: #0f172a;
+            font-size: 1.85rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            line-height: 1.1;
+            margin-top: 4px;
+        }
+        .dark .stat-value { color: #e8edf5; }
+
+        .stat-sub {
+            color: #94a3b8;
+            font-size: 0.75rem;
+            margin-top: 6px;
+        }
+        .dark .stat-sub { color: #6b7a93; }
+
+        /* Icon bubble inside stat card */
+        .stat-icon-bubble {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            flex-shrink: 0;
+        }
+
+        /* ============================================
+           MODERN WELCOME HEADER
+           ============================================ */
+        .welcome-gradient {
+            background:
+                radial-gradient(circle at 20% 20%, rgba(255,255,255,0.12), transparent 40%),
+                radial-gradient(circle at 80% 80%, rgba(139,92,246,0.18), transparent 45%),
+                linear-gradient(135deg, #1e3a8a 0%, #3b82f6 55%, #6366f1 100%);
+            position: relative;
+            overflow: hidden;
+        }
+        .dark .welcome-gradient {
+            background:
+                radial-gradient(circle at 20% 20%, rgba(96,165,250,0.15), transparent 40%),
+                radial-gradient(circle at 80% 80%, rgba(139,92,246,0.2), transparent 45%),
+                linear-gradient(135deg, #0b1a2e 0%, #1a3a5f 50%, #2a4a7a 100%);
+        }
+        .welcome-gradient::after {
+            content: '';
+            position: absolute;
+            bottom: -50%;
+            right: -10%;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(255,255,255,0.08), transparent 70%);
+            border-radius: 50%;
+        }
+        .welcome-text { color: white; }
+        .welcome-sub { color: rgba(255,255,255,0.8); }
+
+        .btn-primary { background: linear-gradient(135deg, #3b82f6, #1d4ed8); color: white; padding: 10px 20px; border-radius: 10px; border: none; cursor: pointer; font-weight: 600; transition: all 0.3s ease; }
+        .btn-primary:hover { transform: scale(1.02); box-shadow: 0 4px 15px rgba(59,130,246,0.4); }
+        .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .btn-danger { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; transition: all 0.3s ease; }
+        .btn-danger:hover { transform: scale(1.02); box-shadow: 0 4px 15px rgba(239,68,68,0.4); }
+        .btn-success { background: linear-gradient(135deg, #22c55e, #16a34a); color: white; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; transition: all 0.3s ease; }
+        .btn-success:hover { transform: scale(1.02); box-shadow: 0 4px 15px rgba(34,197,94,0.4); }
+        .btn-success:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .btn-warning { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; transition: all 0.3s ease; }
+        .btn-warning:hover { transform: scale(1.02); box-shadow: 0 4px 15px rgba(245,158,11,0.4); }
+        .badge { padding: 4px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
+        .badge-pending { background: #fef3c7; color: #92400e; }
+        .badge-inprogress { background: #dbeafe; color: #1e40af; }
+        .badge-resolved { background: #dcfce7; color: #166534; }
+        .badge-rejected { background: #fee2e2; color: #991b1b; }
+        .badge-available { background: #dcfce7; color: #166534; }
+        .badge-borrowed { background: #fee2e2; color: #991b1b; }
+        .badge-lost { background: #fee2e2; color: #991b1b; }
+        .badge-found { background: #dcfce7; color: #166534; }
+        .badge-claimed { background: #dbeafe; color: #1e40af; }
+        .badge-present { background: #dcfce7; color: #166534; padding: 4px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
+        .badge-absent { background: #fee2e2; color: #991b1b; padding: 4px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
+        .badge-hostel { background: #f3e8ff; color: #6d28d9; }
+        .dark .badge-pending { background: #3a2a1a; color: #fdba74; }
+        .dark .badge-inprogress { background: #1a2a5a; color: #93c5fd; }
+        .dark .badge-resolved { background: #1a3a2a; color: #6ee7b7; }
+        .dark .badge-rejected { background: #3a1a1a; color: #fca5a5; }
+        .dark .badge-available { background: #1a3a2a; color: #6ee7b7; }
+        .dark .badge-borrowed { background: #3a1a1a; color: #fca5a5; }
+        .dark .badge-lost { background: #3a1a1a; color: #fca5a5; }
+        .dark .badge-found { background: #1a3a2a; color: #6ee7b7; }
+        .dark .badge-claimed { background: #1a2a5a; color: #93c5fd; }
+        .dark .badge-present { background: #1a3a2a; color: #6ee7b7; }
+        .dark .badge-absent { background: #3a1a1a; color: #fca5a5; }
+        .dark .badge-hostel { background: #2a1a4a; color: #c4b5fd; }
+        .modal-overlay { background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); }
+        .modal-content { background: white; border-radius: 16px; padding: 24px; max-width: 700px; width: 95%; max-height: 90vh; overflow-y: auto; }
+        .dark .modal-content { background: #182235; }
+        .input-field { width: 100%; padding: 10px 14px; border: 1px solid #d1d5db; border-radius: 10px; outline: none; transition: all 0.3s ease; background: white; color: #111827; }
+        .input-field:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59,130,246,0.1); }
+        .dark .input-field { background: #253450; border-color: #3a4a66; color: #e8edf5; }
+        .day-card { border-radius: 12px; overflow: hidden; border: 1px solid #e5e7eb; margin-bottom: 16px; background: white; }
+        .dark .day-card { border-color: #253450; background: #182235; }
+        .day-header { background: #f1f5f9; padding: 12px 16px; font-weight: 700; color: #0f172a; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; align-items: center; }
+        .dark .day-header { background: #1e293b; color: #e8edf5; }
+        .day-slot { padding: 12px 16px; border-bottom: 1px solid #f1f5f9; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+        .day-slot:last-child { border-bottom: none; }
+        .dark .day-slot { border-bottom-color: #1e293b; }
+        .day-slot-left { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+        .day-slot-subject { font-weight: 600; color: #0f172a; }
+        .dark .day-slot-subject { color: #e8edf5; }
+        .day-slot-block { padding: 2px 10px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; background: #e0e7ff; color: #4338ca; }
+        .status-badge { padding: 2px 12px; border-radius: 20px; font-size: 0.65rem; font-weight: 600; }
+        .status-upcoming { background: #dbeafe; color: #1d4ed8; }
+        .status-ongoing { background: #dcfce7; color: #16a34a; animation: pulse-green 1.5s infinite; }
+        .status-completed { background: #f1f5f9; color: #64748b; }
+        @keyframes pulse-green { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+        .day-empty { padding: 20px; text-align: center; color: #94a3b8; font-size: 0.875rem; }
+        .image-preview-item { width: 100%; max-height: 150px; object-fit: cover; border-radius: 8px; margin-top: 8px; border: 2px dashed #3b82f6; }
+        .rating-star { font-size: 2rem; cursor: pointer; transition: all 0.2s; color: #d1d5db; }
+        .rating-star.active { color: #f59e0b; }
+        .restaurant-card { transition: all 0.3s ease; cursor: pointer; }
+        .restaurant-card.active { border: 2px solid #f59e0b; }
+        .restaurant-icon { font-size: 2.5rem; }
+        .menu-item-card { transition: all 0.3s ease; }
+        .complaint-priority-high { border-left-color: #ef4444; }
+        .complaint-priority-medium { border-left-color: #f59e0b; }
+        .status-bus-active { background: #dcfce7; color: #166534; }
+        .seat-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+        .seat-btn { padding: 8px 4px; border-radius: 8px; border: 2px solid #e5e7eb; cursor: pointer; font-size: 0.75rem; font-weight: 600; transition: all 0.2s; text-align: center; }
+        .seat-btn.seat-available { border-color: #22c55e; color: #16a34a; background: #f0fdf4; }
+        .seat-btn.seat-booked { border-color: #ef4444; color: #991b1b; background: #fef2f2; cursor: not-allowed; opacity: 0.6; }
+        .seat-btn.seat-selected { border-color: #3b82f6; background: #3b82f6; color: white; }
+        .bg-gray-50 { background: #f8fafc; }
+        .dark .bg-gray-50 { background: #1e293b; }
+        .hostel-card { transition: all 0.3s ease; border-radius: 12px; }
+        .hostel-card:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(0,0,0,0.1); }
+        .room-type-badge { padding: 4px 10px; border-radius: 12px; font-size: 0.7rem; font-weight: 600; }
+        .room-single { background: #dbeafe; color: #1d4ed8; }
+        .room-double { background: #d1fae5; color: #065f46; }
+        .room-triple { background: #fef3c7; color: #92400e; }
+        .ac-badge { background: #fce7f3; color: #9d174d; padding: 3px 8px; border-radius: 10px; font-size: 0.65rem; font-weight: 600; }
+        .non-ac-badge { background: #e0e7ff; color: #4338ca; padding: 3px 8px; border-radius: 10px; font-size: 0.65rem; font-weight: 600; }
+        .gender-male { background: #dbeafe; color: #1e40af; padding: 3px 10px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; }
+        .gender-female { background: #fce7f3; color: #9d174d; padding: 3px 10px; border-radius: 10px; font-size: 0.7rem; font-weight: 600; }
+        .rent-display { font-size: 1.3rem; font-weight: 700; color: #16a34a; }
+        .mess-menu-row { padding: 8px 0; border-bottom: 1px dashed #e5e7eb; display: flex; justify-content: space-between; align-items: flex-start; }
+        .mess-menu-row:last-child { border-bottom: none; }
+        .rule-item { padding: 10px 12px; background: #f8fafc; border-radius: 8px; border-left: 3px solid #3b82f6; margin-bottom: 8px; }
+        .material-item { padding: 12px; border-radius: 10px; border: 1px solid #e5e7eb; transition: all 0.2s; }
+        .material-item:hover { border-color: #3b82f6; transform: translateX(4px); }
+        .dark .material-item { border-color: #253450; background: #182235; }
+        .hostel-tab { padding: 8px 16px; border-radius: 10px; cursor: pointer; font-weight: 600; font-size: 0.85rem; transition: all 0.2s; border: none; background: transparent; color: #64748b; }
+        .hostel-tab:hover { background: #f1f5f9; }
+        .hostel-tab.active { background: #3b82f6; color: white; box-shadow: 0 4px 12px rgba(59,130,246,0.3); }
+        .dark .hostel-tab { color: #94a3b8; }
+        .dark .hostel-tab.active { background: #2563eb; color: white; }
+        .loading-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; z-index: 9999; pointer-events: none; }
+        .loading-spinner { width: 50px; height: 50px; border: 4px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 1s linear infinite; pointer-events: auto; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .empty-state { padding: 40px; text-align: center; color: #94a3b8; }
+        .empty-state .icon { font-size: 3rem; display: block; margin-bottom: 8px; }
+    </style>
 </head>
 <body>
-$END$
+<div id="root"></div>
+<script type="text/babel">
+    const { useState, useEffect } = React;
+    const api = axios.create({
+        baseURL: '/api',
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 8000
+    });
+    api.interceptors.request.use(config => {
+        const token = localStorage.getItem('token');
+        if (token) config.headers.Authorization = `Bearer ${token}`;
+        return config;
+    });
+    api.interceptors.response.use(
+        res => res,
+        err => {
+            if (err.response?.status === 401) {
+                localStorage.clear();
+                window.location.href = 'index.html';
+            }
+            return Promise.reject(err);
+        }
+    );
+
+    const token = localStorage.getItem('token');
+    if (!token) window.location.href = 'index.html';
+    const name = localStorage.getItem('name') || 'Student';
+    const userId = localStorage.getItem('userId') || '1';
+
+    async function apiCall(method, url, data, config) {
+        try {
+            const res = await api[method](url, data, config);
+            return { ok: true, data: res.data };
+        } catch (err) {
+            return { ok: false, error: err };
+        }
+    }
+
+    function safeStr(val, fallback = 'N/A') {
+        if (val === null || val === undefined) return fallback;
+        if (typeof val === 'string') return val;
+        if (typeof val === 'number' || typeof val === 'boolean') return String(val);
+        if (typeof val === 'object') {
+            return val.name || val.title || val.username || val.fullName || val.displayName || fallback;
+        }
+        return fallback;
+    }
+
+    const MESS_MENU_STATIC = {
+        veg: {
+            Monday: { breakfast: 'Poha, Upma, Tea, Coffee, Milk', lunch: 'Roti, Dal, Rice, Mixed Veg, Salad', dinner: 'Roti, Paneer Butter Masala, Rice, Dal, Sweet' },
+            Tuesday: { breakfast: 'Idli, Sambhar, Coconut Chutney, Tea', lunch: 'Roti, Chole, Jeera Rice, Raita, Papad', dinner: 'Roti, Aloo Gobi, Rice, Dal, Salad' },
+            Wednesday: { breakfast: 'Dosa, Sambhar, Chutney, Tea, Coffee', lunch: 'Roti, Rajma, Rice, Mixed Veg, Salad', dinner: 'Roti, Shahi Paneer, Rice, Dal, Sweet' },
+            Thursday: { breakfast: 'Paratha, Curd, Pickle, Tea', lunch: 'Roti, Dal Tadka, Rice, Bhindi Masala', dinner: 'Roti, Malai Kofta, Rice, Dal' },
+            Friday: { breakfast: 'Puri, Aloo Sabzi, Tea', lunch: 'Roti, Kadhi, Rice, Aloo Jeera, Salad', dinner: 'Roti, Palak Paneer, Rice, Dal, Sweet' },
+            Saturday: { breakfast: 'Chole Bhature, Tea, Lassi', lunch: 'Roti, Dal Makhani, Rice, Veg Biryani', dinner: 'Roti, Veg Kofta, Rice, Dal, Raita' },
+            Sunday: { breakfast: 'Bread, Jam, Butter, Omelette, Tea', lunch: 'Roti, Special Dal, Rice, Paneer, Salad', dinner: 'Roti, Veg Biryani, Raita, Sweet' }
+        },
+        nonVeg: {
+            Monday: { breakfast: 'Poha, Upma, Boiled Eggs, Tea, Coffee', lunch: 'Roti, Chicken Curry, Rice, Salad', dinner: 'Roti, Egg Curry, Rice, Dal' },
+            Tuesday: { breakfast: 'Idli, Sambhar, Chutney, Tea', lunch: 'Roti, Fish Curry, Jeera Rice, Raita', dinner: 'Roti, Chicken Tikka Masala, Rice, Dal' },
+            Wednesday: { breakfast: 'Dosa, Sambhar, Chutney, Tea', lunch: 'Roti, Mutton Curry, Rice, Salad', dinner: 'Roti, Egg Bhurji, Rice, Dal' },
+            Thursday: { breakfast: 'Paratha, Curd, Boiled Eggs, Tea', lunch: 'Roti, Chicken Biryani, Raita, Papad', dinner: 'Roti, Fish Fry, Rice, Dal' },
+            Friday: { breakfast: 'Puri, Aloo Sabzi, Tea', lunch: 'Roti, Chicken Curry, Rice, Salad', dinner: 'Roti, Mutton Keema, Rice, Dal' },
+            Saturday: { breakfast: 'Chole Bhature, Boiled Eggs, Tea', lunch: 'Roti, Chicken Korma, Rice, Salad', dinner: 'Roti, Fish Curry, Rice, Dal' },
+            Sunday: { breakfast: 'Bread, Jam, Omelette, Tea', lunch: 'Roti, Chicken Biryani, Raita, Salad', dinner: 'Roti, Mutton Curry, Rice, Sweet' }
+        }
+    };
+
+    const HOSTEL_RULES_STATIC = [
+        { id: 1, rule: 'Students must carry their ID cards at all times within the hostel premises.', category: 'Security', priority: 1 },
+        { id: 2, rule: 'Girls hostel has a strict curfew at 9:00 PM. Boys hostel curfew at 10:30 PM.', category: 'Security', priority: 1 },
+        { id: 3, rule: 'No opposite-gender visitors allowed inside hostel rooms.', category: 'Security', priority: 1 },
+        { id: 4, rule: 'Maintain cleanliness in your room and common areas.', category: 'Cleanliness', priority: 2 },
+        { id: 5, rule: 'Loud music and parties are strictly prohibited.', category: 'Conduct', priority: 2 },
+        { id: 6, rule: 'Report any maintenance issues to the warden immediately.', category: 'General', priority: 3 },
+        { id: 7, rule: 'Do not share your room keys with anyone.', category: 'Security', priority: 2 },
+        { id: 8, rule: 'Guests must sign in at the guard desk and leave by 8:00 PM.', category: 'Security', priority: 1 },
+        { id: 9, rule: 'Smoking, alcohol, and drugs are strictly prohibited.', category: 'Conduct', priority: 1 },
+        { id: 10, rule: 'Electric appliances like heaters and induction cooktops are not allowed in rooms.', category: 'Safety', priority: 2 },
+        { id: 11, rule: 'Ragging in any form is a punishable offense.', category: 'Conduct', priority: 1 },
+        { id: 12, rule: 'Switch off lights and fans when leaving the room.', category: 'General', priority: 3 }
+    ];
+
+    function StudentDashboard() {
+        const [isDarkMode, setIsDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
+        const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+        const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+        const [activeTab, setActiveTab] = useState('dashboard');
+        const [message, setMessage] = useState({ text: '', type: '' });
+        const [globalLoading, setGlobalLoading] = useState(false);
+        const [apiOnline, setApiOnline] = useState(false);
+        const [attendanceStats, setAttendanceStats] = useState({ total: 0, present: 0, percentage: 0 });
+        const [attendanceRecords, setAttendanceRecords] = useState([]);
+        const [timetable, setTimetable] = useState([]);
+        const [notices, setNotices] = useState([]);
+        const [showNoticeDetailModal, setShowNoticeDetailModal] = useState(false);
+        const [selectedNotice, setSelectedNotice] = useState(null);
+        const [lostItems, setLostItems] = useState([]);
+        const [showLostItemModal, setShowLostItemModal] = useState(false);
+        const [lostItemForm, setLostItemForm] = useState({ title: '', description: '', category: 'LOST', location: '', contactInfo: '', date: new Date().toISOString().split('T')[0], imageFile: null, imagePreview: null });
+        const [assignments, setAssignments] = useState([]);
+        const [showSubmitAssignmentModal, setShowSubmitAssignmentModal] = useState(false);
+        const [selectedAssignment, setSelectedAssignment] = useState(null);
+        const [submitFile, setSubmitFile] = useState(null);
+        const [submitFileName, setSubmitFileName] = useState('');
+        const [submittedAssignments, setSubmittedAssignments] = useState({});
+        const [books, setBooks] = useState([]);
+        const [myBorrowings, setMyBorrowings] = useState([]);
+        const [showReserveModal, setShowReserveModal] = useState(false);
+        const [selectedBook, setSelectedBook] = useState(null);
+        const [complaints, setComplaints] = useState([]);
+        const [showComplaintModal, setShowComplaintModal] = useState(false);
+        const [complaintForm, setComplaintForm] = useState({ title: '', description: '', category: 'Hostel', priority: 'MEDIUM' });
+        const [showComplaintDetailModal, setShowComplaintDetailModal] = useState(false);
+        const [selectedComplaint, setSelectedComplaint] = useState(null);
+        const [commentText, setCommentText] = useState('');
+        const [events, setEvents] = useState([]);
+        const [eventRegistrations, setEventRegistrations] = useState({});
+        const [buses, setBuses] = useState([]);
+        const [busRoutes, setBusRoutes] = useState([]);
+        const [schedules, setSchedules] = useState([]);
+        const [myBookings, setMyBookings] = useState([]);
+        const [showBookingModal, setShowBookingModal] = useState(false);
+        const [selectedBus, setSelectedBus] = useState(null);
+        const [selectedSchedule, setSelectedSchedule] = useState(null);
+        const [selectedSeat, setSelectedSeat] = useState(null);
+        const [availableSeats, setAvailableSeats] = useState([]);
+        const [showPaymentModal, setShowPaymentModal] = useState(false);
+        const [paymentUpiId, setPaymentUpiId] = useState('');
+        const [paymentAmount, setPaymentAmount] = useState(50);
+        const [myFeedbacks, setMyFeedbacks] = useState([]);
+        const [showFeedbackModal, setShowFeedbackModal] = useState(false);
+        const [feedbackForm, setFeedbackForm] = useState({ title: '', comment: '', rating: 0, category: 'FACULTY', isAnonymous: false });
+        const [hoverRating, setHoverRating] = useState(0);
+        const [randomQuestions, setRandomQuestions] = useState([]);
+        const [restaurants, setRestaurants] = useState([]);
+        const [selectedRestaurant, setSelectedRestaurant] = useState(null);
+        const [restaurantItems, setRestaurantItems] = useState([]);
+        const [placementDrives, setPlacementDrives] = useState([]);
+        const [showApplyDriveModal, setShowApplyDriveModal] = useState(false);
+        const [selectedDrive, setSelectedDrive] = useState(null);
+        const [resumeFile, setResumeFile] = useState(null);
+        const [resumeFileName, setResumeFileName] = useState('');
+        const [placementStats, setPlacementStats] = useState({ placedStudents: 0, placementPercentage: 0, highestPackage: 0, averagePackage: 0, activeDrives: 0 });
+        const [hostelTab, setHostelTab] = useState('rooms');
+        const [hostels, setHostels] = useState([]);
+        const [hostelRooms, setHostelRooms] = useState([]);
+        const [hostelBookings, setHostelBookings] = useState([]);
+        const [showHostelBookingModal, setShowHostelBookingModal] = useState(false);
+        const [selectedHostelRoom, setSelectedHostelRoom] = useState(null);
+        const [hostelComplaints, setHostelComplaints] = useState([]);
+        const [showHostelComplaintModal, setShowHostelComplaintModal] = useState(false);
+        const [hostelComplaintForm, setHostelComplaintForm] = useState({ title: '', description: '', category: 'Plumbing', priority: 'MEDIUM', roomNumber: '' });
+        const [messMenu] = useState(MESS_MENU_STATIC);
+        const [hostelRules] = useState(HOSTEL_RULES_STATIC);
+        const [messType, setMessType] = useState('veg');
+        const [showFullMessModal, setShowFullMessModal] = useState(false);
+        const [courseMaterials, setCourseMaterials] = useState([]);
+        const [materialFilter, setMaterialFilter] = useState('ALL');
+        const [materialSubjects, setMaterialSubjects] = useState([]);
+        const [leaveForm, setLeaveForm] = useState({
+             title: '', description: '',
+             startDate: '', endDate: '',
+             leaveType: 'CASUAL',
+             proofFile: null
+        });
+        const [leaves, setLeaves] = useState([]);
+        const [showLeaveModal, setShowLeaveModal] = useState(false);
+
+        const showMessage = (text, type) => {
+            setMessage({ text, type });
+            setTimeout(() => setMessage({ text: '', type: '' }), 4000);
+        };
+
+        // ============ FETCHERS ============
+        const fetchAttendance = async () => {
+            const summary = await apiCall('get', `/attendance/student/${userId}/summary`);
+            if (summary.ok && summary.data) {
+                setAttendanceStats({
+                    total: summary.data.totalClasses || summary.data.total || 0,
+                    present: summary.data.presentCount || summary.data.present || 0,
+                    percentage: summary.data.percentage || 0
+                });
+            }
+            const records = await apiCall('get', `/attendance/student/${userId}`);
+            if (records.ok && Array.isArray(records.data)) setAttendanceRecords(records.data);
+        };
+        const fetchTimetable = async () => { const res = await apiCall('get', '/timetable'); if (res.ok && Array.isArray(res.data)) setTimetable(res.data); };
+        const fetchNotices = async () => { const res = await apiCall('get', '/notices'); if (res.ok && Array.isArray(res.data)) setNotices(res.data); };
+        const fetchLostItems = async () => { const res = await apiCall('get', '/lost-found/all'); if (res.ok && Array.isArray(res.data)) setLostItems(res.data); else setLostItems([]); };
+        const fetchAssignments = async () => { const res = await apiCall('get', '/assignments'); if (res.ok && Array.isArray(res.data)) setAssignments(res.data); else setAssignments([]); };
+        const fetchBooks = async () => { const res = await apiCall('get', '/library/books'); if (res.ok && Array.isArray(res.data)) setBooks(res.data); else setBooks([]); };
+        const fetchMyBorrowings = async () => { const res = await apiCall('get', `/library/history/${userId}`); if (res.ok && Array.isArray(res.data)) setMyBorrowings(res.data); else setMyBorrowings([]); };
+        const fetchComplaints = async () => { const res = await apiCall('get', `/complaints/student/${userId}`); if (res.ok && Array.isArray(res.data)) setComplaints(res.data); else setComplaints([]); };
+        const fetchEvents = async () => { const res = await apiCall('get', '/events'); if (res.ok && Array.isArray(res.data)) setEvents(res.data); else setEvents([]); };
+        const fetchBuses = async () => { const res = await apiCall('get', '/transport/buses'); if (res.ok && Array.isArray(res.data)) setBuses(res.data); else setBuses([]); };
+        const fetchBusRoutes = async () => { const res = await apiCall('get', '/transport/routes'); if (res.ok && Array.isArray(res.data)) setBusRoutes(res.data); else setBusRoutes([]); };
+        const fetchSchedules = async () => { const res = await apiCall('get', '/transport/schedules'); if (res.ok && Array.isArray(res.data)) setSchedules(res.data); else setSchedules([]); };
+        const fetchMyBookings = async () => { const res = await apiCall('get', `/transport/bookings/user/${userId}`); if (res.ok && Array.isArray(res.data)) setMyBookings(res.data); else setMyBookings([]); };
+        const fetchFeedbacks = async () => { const res = await apiCall('get', '/feedback/my-feedback'); if (res.ok && Array.isArray(res.data)) setMyFeedbacks(res.data); else setMyFeedbacks([]); };
+        const fetchRestaurants = async () => {
+            const res = await apiCall('get', '/cafeteria/restaurants');
+            if (res.ok && Array.isArray(res.data) && res.data.length > 0) {
+                setRestaurants(res.data);
+                const first = res.data[0];
+                setSelectedRestaurant(first);
+                const itemsRes = await apiCall('get', `/cafeteria/restaurants/${first.id}/items`);
+                if (itemsRes.ok && Array.isArray(itemsRes.data)) setRestaurantItems(itemsRes.data);
+                else setRestaurantItems([]);
+            }
+        };
+        const selectRestaurant = async (r) => {
+            setSelectedRestaurant(r);
+            setRestaurantItems([]);
+            const itemsRes = await apiCall('get', `/cafeteria/restaurants/${r.id}/items`);
+            if (itemsRes.ok && Array.isArray(itemsRes.data)) setRestaurantItems(itemsRes.data);
+            else setRestaurantItems([]);
+        };
+        const fetchPlacementDrives = async () => { const res = await apiCall('get', '/placement/drives'); if (res.ok && Array.isArray(res.data)) setPlacementDrives(res.data); else setPlacementDrives([]); };
+        const fetchPlacementStats = async () => { const res = await apiCall('get', '/placement/statistics/latest'); if (res.ok && res.data) setPlacementStats(res.data); };
+        const fetchHostels = async () => { const res = await apiCall('get', '/hostel/hostels'); if (res.ok && Array.isArray(res.data)) setHostels(res.data); else setHostels([]); };
+        const fetchHostelRooms = async (hostelsList) => {
+            const listToUse = hostelsList || hostels;
+            if (!listToUse || listToUse.length === 0) return;
+            const allRooms = [];
+            for (const h of listToUse) {
+                const rRes = await apiCall('get', `/hostel/rooms/hostel/${h.id}`);
+                if (rRes.ok && Array.isArray(rRes.data)) {
+                    rRes.data.forEach(r => allRooms.push({ ...r, hostelName: safeStr(h.name), block: safeStr(h.block), gender: h.gender || 'MALE' }));
+                }
+            }
+            setHostelRooms(allRooms);
+        };
+        const fetchHostelBookings = async () => { const res = await apiCall('get', `/hostel/allocations/student/${userId}`); if (res.ok && res.data) setHostelBookings([res.data]); else setHostelBookings([]); };
+        const fetchHostelComplaints = async () => { const res = await apiCall('get', '/hostel/maintenance/my'); if (res.ok && Array.isArray(res.data)) setHostelComplaints(res.data); else setHostelComplaints([]); };
+        const fetchCourseMaterials = async () => {
+            const res = await apiCall('get', '/course-material/all');
+            if (res.ok && Array.isArray(res.data)) setCourseMaterials(res.data);
+            else setCourseMaterials([]);
+            const subRes = await apiCall('get', '/course-material/subjects');
+            if (subRes.ok && Array.isArray(subRes.data)) setMaterialSubjects(subRes.data);
+        };
+        // ============ LEAVES ============
+const fetchLeaves = async () => {
+    const res = await apiCall('get', `/leaves/user/${userId}?size=50`);
+    if (res.ok && res.data && Array.isArray(res.data.leaves)) {
+        setLeaves(res.data.leaves);
+    } else if (res.ok && Array.isArray(res.data)) {
+        setLeaves(res.data);
+    } else {
+        setLeaves([]);
+    }
+};
+
+const handleApplyLeave = async (e) => {
+    e.preventDefault();
+    if (!leaveForm.title.trim() || !leaveForm.startDate || !leaveForm.endDate) {
+        showMessage('Title, start date and end date are required', 'error');
+        return;
+    }
+    setGlobalLoading(true);
+    try {
+        const fd = new FormData();
+        const leaveJson = {
+            title: leaveForm.title.trim(),
+            description: leaveForm.description.trim() || '',
+            startDate: leaveForm.startDate,
+            endDate: leaveForm.endDate,
+            leaveType: leaveForm.leaveType
+        };
+        fd.append('leave',
+            new Blob([JSON.stringify(leaveJson)], { type: 'application/json' }));
+        if (leaveForm.proofFile) {
+            fd.append('file', leaveForm.proofFile, leaveForm.proofFile.name);
+        }
+
+        const res = await apiCall('post', `/leaves?userId=${userId}`, fd, {
+            headers: { 'Content-Type': 'multipart/form-data' }
+        });
+
+        if (res.ok) {
+            showMessage('✅ Leave request submitted', 'success');
+            setShowLeaveModal(false);
+            setLeaveForm({
+                title: '', description: '',
+                startDate: '', endDate: '',
+                leaveType: 'CASUAL',
+                proofFile: null
+            });
+            await fetchLeaves();
+        } else {
+            const msg = res.error?.response?.data?.error
+                || res.error?.response?.data?.message
+                || res.error?.message
+                || 'Failed to submit leave';
+            showMessage('❌ ' + msg, 'error');
+        }
+    } finally {
+        setGlobalLoading(false);
+    }
+};
+
+const handleCancelLeave = async (leaveId) => {
+    if (!confirm('Cancel this leave request?')) return;
+    setGlobalLoading(true);
+    const res = await apiCall('delete', `/leaves/${leaveId}?userId=${userId}`);
+    if (res.ok) {
+        showMessage('✅ Leave cancelled', 'success');
+        await fetchLeaves();
+    } else {
+        const msg = res.error?.response?.data?.error
+            || res.error?.response?.data?.message
+            || 'Cancel failed';
+        showMessage('❌ ' + msg, 'error');
+    }
+    setGlobalLoading(false);
+};
+
+ const loadAllData = async () => {
+    setGlobalLoading(true);
+    try {
+        const results = await Promise.allSettled([
+            fetchAttendance(), fetchTimetable(), fetchNotices(), fetchLostItems(), fetchAssignments(),
+            fetchBooks(), fetchMyBorrowings(), fetchComplaints(), fetchEvents(), fetchBuses(),
+            fetchBusRoutes(), fetchSchedules(), fetchMyBookings(), fetchFeedbacks(), fetchRestaurants(),
+            fetchPlacementDrives(), fetchPlacementStats(), fetchHostels(), fetchHostelComplaints(),
+            fetchCourseMaterials(), fetchLeaves()
+        ]);
+        const hRes = await apiCall('get', '/hostel/hostels');
+        if (hRes.ok && Array.isArray(hRes.data)) {
+            setHostels(hRes.data);
+            await fetchHostelRooms(hRes.data);
+        }
+        await fetchHostelBookings();
+        const anySuccess = results.some(r => r.status === 'fulfilled');
+        setApiOnline(anySuccess);
+        if (anySuccess) showMessage('✅ Data loaded from server', 'success');
+        else showMessage('⚠️ Could not reach server', 'error');
+    } catch (err) {
+        console.error('loadAllData failed:', err);
+        setApiOnline(false);
+    } finally {
+        setGlobalLoading(false);
+    }
+};
+
+        useEffect(() => { loadAllData(); }, []);
+        useEffect(() => {
+            document.documentElement.classList.toggle('dark', isDarkMode);
+            localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+        }, [isDarkMode]);
+
+        useEffect(() => {
+            const fetchRegisteredEvents = async () => {
+                const res = await apiCall('get', `/events/registered/${userId}`);
+                if (res.ok && Array.isArray(res.data)) {
+                    const map = {};
+                    res.data.forEach(e => { map[e.id] = true; });
+                    setEventRegistrations(map);
+                }
+            };
+            fetchRegisteredEvents();
+        }, [userId]);
+
+        // ============ LOST & FOUND ============
+        const handleReportLostItem = async (e) => {
+            e.preventDefault();
+            if (!lostItemForm.title.trim() || !lostItemForm.location.trim()) { showMessage('Fill required fields', 'error'); return; }
+            setGlobalLoading(true);
+            const formData = new FormData();
+            const itemData = { title: lostItemForm.title, description: lostItemForm.description, category: lostItemForm.category, status: lostItemForm.category, location: lostItemForm.location, contactInfo: lostItemForm.contactInfo, date: lostItemForm.date, reportedBy: name, reportedById: userId };
+            formData.append('item', new Blob([JSON.stringify(itemData)], { type: 'application/json' }));
+            if (lostItemForm.imageFile) formData.append('image', lostItemForm.imageFile);
+            const res = await apiCall('post', '/lost-found/report', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+            if (res.ok) { showMessage('✅ Item reported!', 'success'); await fetchLostItems(); }
+            else showMessage('❌ Failed to report item', 'error');
+            setShowLostItemModal(false);
+            setLostItemForm({ title: '', description: '', category: 'LOST', location: '', contactInfo: '', date: new Date().toISOString().split('T')[0], imageFile: null, imagePreview: null });
+            setGlobalLoading(false);
+        };
+        const handleClaimItem = async (itemId) => {
+            if (!confirm('Claim this item?')) return;
+            setGlobalLoading(true);
+            const res = await apiCall('put', `/lost-found/${itemId}/claim`);
+            if (res.ok) { showMessage('✅ Item claimed!', 'success'); await fetchLostItems(); }
+            else showMessage('❌ Failed to claim item', 'error');
+            setGlobalLoading(false);
+        };
+        const handleLostItemImageChange = (e) => {
+            const file = e.target.files[0];
+            if (file) { const reader = new FileReader(); reader.onloadend = () => setLostItemForm(prev => ({ ...prev, imageFile: file, imagePreview: reader.result })); reader.readAsDataURL(file); }
+        };
+
+        // ============ ASSIGNMENT ============
+        const handleSubmitAssignment = async (e) => {
+            e.preventDefault();
+            if (!submitFile) { showMessage('Please select a file', 'error'); return; }
+            const ext = submitFile.name.split('.').pop().toLowerCase();
+            if (!['pdf', 'doc', 'docx'].includes(ext)) { showMessage('Only PDF/DOC/DOCX allowed', 'error'); return; }
+            if (submitFile.size > 10 * 1024 * 1024) { showMessage('Max 10MB', 'error'); return; }
+            setGlobalLoading(true);
+            const formData = new FormData();
+            formData.append('assignmentId', selectedAssignment.id);
+            formData.append('file', submitFile);
+            const res = await apiCall('post', '/assignments/submit', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+            if (res.ok) { showMessage('✅ Assignment submitted!', 'success'); const updated = { ...submittedAssignments, [selectedAssignment.id]: { fileName: submitFileName, submittedAt: new Date().toISOString() } }; setSubmittedAssignments(updated); }
+            else showMessage('❌ Failed to submit assignment', 'error');
+            setShowSubmitAssignmentModal(false); setSubmitFile(null); setSubmitFileName(''); setGlobalLoading(false);
+        };
+        const handleAssignmentFileChange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (!['pdf', 'doc', 'docx'].includes(ext)) { showMessage('Only PDF/DOC/DOCX', 'error'); e.target.value = ''; return; }
+            if (file.size > 10 * 1024 * 1024) { showMessage('Max 10MB', 'error'); e.target.value = ''; return; }
+            setSubmitFile(file); setSubmitFileName(file.name);
+        };
+
+        // ============ LIBRARY ============
+        const handleBorrowBook = async () => {
+            setGlobalLoading(true);
+            const res = await apiCall('post', `/library/reserve/${selectedBook.id}`);
+            if (res.ok) { showMessage('✅ Book reserved!', 'success'); await fetchBooks(); }
+            else showMessage('❌ Failed to reserve book', 'error');
+            setShowReserveModal(false); setSelectedBook(null); setGlobalLoading(false);
+        };
+
+        // ============ COMPLAINT ============
+        const handleCreateComplaint = async (e) => {
+            e.preventDefault();
+            if (!complaintForm.title.trim() || !complaintForm.description.trim()) { showMessage('Fill all fields', 'error'); return; }
+            setGlobalLoading(true);
+            const payload = { title: complaintForm.title, description: complaintForm.description, category: complaintForm.category, priority: complaintForm.priority, status: 'PENDING', createdBy: name, createdById: userId, createdAt: new Date().toISOString().split('T')[0] };
+            const res = await apiCall('post', '/complaints', payload);
+            if (res.ok) { showMessage('✅ Complaint submitted!', 'success'); await fetchComplaints(); }
+            else showMessage('❌ Failed to submit complaint', 'error');
+            setShowComplaintModal(false); setComplaintForm({ title: '', description: '', category: 'Hostel', priority: 'MEDIUM' }); setGlobalLoading(false);
+        };
+        const handleAddComment = async (complaintId) => {
+            if (!commentText.trim()) return;
+            setGlobalLoading(true);
+            const res = await apiCall('post', `/complaints/${complaintId}/comments`, { text: commentText, user: name });
+            if (res.ok) { showMessage('✅ Comment added!', 'success'); await fetchComplaints(); }
+            else showMessage('❌ Failed to add comment', 'error');
+            setCommentText(''); setGlobalLoading(false);
+        };
+        const getComplaintStatusBadge = (status) => {
+            const map = { 'PENDING': 'badge-pending', 'IN_PROGRESS': 'badge-inprogress', 'RESOLVED': 'badge-resolved', 'REJECTED': 'badge-rejected' };
+            return map[status] || 'badge-pending';
+        };
+
+        // ============ EVENTS ============
+        const handleRegisterEvent = async (eventId) => {
+            setGlobalLoading(true);
+            const res = await apiCall('post', `/events/${eventId}/register/${userId}`);
+            if (res.ok) {
+                showMessage('✅ Registered!', 'success');
+                await fetchEvents();
+            } else if (res.error?.response?.status === 409) {
+                showMessage('ℹ️ You are already registered for this event', 'success');
+                setEventRegistrations(prev => ({ ...prev, [eventId]: true }));
+            } else {
+                showMessage('❌ Registration failed', 'error');
+            }
+            setGlobalLoading(false);
+        };
+
+        // ============ TRANSPORT ============
+        const openBookingModal = async (bus) => {
+            setSelectedBus(bus);
+            setSelectedSeat(null);
+            const res = await apiCall('get', `/transport/schedules/bus/${bus.id}`);
+            if (res.ok && Array.isArray(res.data) && res.data.length > 0) {
+                setSelectedSchedule(res.data[0]);
+                const seatsRes = await apiCall('get', `/transport/bookings/available-seats/${res.data[0].id}`);
+                if (seatsRes.ok && seatsRes.data) setAvailableSeats(seatsRes.data.availableSeats || seatsRes.data || []);
+                else { const seats = []; for (let i = 1; i <= bus.capacity; i++) seats.push({ seatNumber: i.toString(), isAvailable: true }); setAvailableSeats(seats); }
+            } else {
+                showMessage('⚠️ No schedule found for this bus', 'error');
+                const seats = []; for (let i = 1; i <= bus.capacity; i++) seats.push({ seatNumber: i.toString(), isAvailable: true }); setAvailableSeats(seats);
+            }
+            setShowBookingModal(true);
+        };
+        const handleProceedToPay = () => {
+            if (!selectedSeat) { showMessage('Select a seat', 'error'); return; }
+            setPaymentAmount(50);
+            setShowPaymentModal(true);
+        };
+        const processPayment = async () => {
+            if (!paymentUpiId.includes('@')) { showMessage('Enter valid UPI ID', 'error'); return; }
+            setGlobalLoading(true);
+            const payload = { scheduleId: selectedSchedule?.id || selectedBus.id, userId: parseInt(userId), seatNumber: parseInt(selectedSeat) };
+            const res = await apiCall('post', '/transport/bookings', payload);
+            if (res.ok) { showMessage(`✅ Seat ${selectedSeat} booked!`, 'success'); await fetchMyBookings(); }
+            else showMessage('❌ Booking failed', 'error');
+            setShowPaymentModal(false); setShowBookingModal(false); setSelectedSeat(null); setSelectedBus(null); setSelectedSchedule(null); setPaymentUpiId(''); setGlobalLoading(false);
+        };
+        const handleCancelBooking = async (bookingId) => {
+            if (!confirm('Cancel this booking?')) return;
+            setGlobalLoading(true);
+            const res = await apiCall('delete', `/transport/bookings/${bookingId}?userId=${userId}`);
+            if (res.ok) {
+                showMessage('✅ Booking cancelled!', 'success');
+                await fetchMyBookings();
+            } else if (res.error?.response?.status === 400) {
+                showMessage('ℹ️ This booking is already cancelled', 'success');
+                await fetchMyBookings();
+            } else {
+                showMessage('❌ Cancel failed', 'error');
+            }
+            setGlobalLoading(false);
+        };
+
+        // ============ FEEDBACK ============
+        const generateRandomQuestions = () => {
+            const allQ = [
+                'How satisfied are you with the overall teaching quality?',
+                'How would you rate the course content and materials?',
+                'How helpful is the faculty in clearing doubts?',
+                'How well-equipped are the laboratories?',
+                'How would you rate the campus infrastructure?',
+                'How satisfied are you with library facilities?',
+                'How good is the cafeteria food quality?',
+                'How would you rate the hostel amenities?',
+                'How effective is the placement training?',
+                'How would you rate the extracurricular activities?'
+            ];
+            return [...allQ].sort(() => 0.5 - Math.random()).slice(0, 3 + Math.floor(Math.random() * 2));
+        };
+        const openFeedbackModal = () => {
+            setRandomQuestions(generateRandomQuestions());
+            setFeedbackForm({ title: '', comment: '', rating: 0, category: 'FACULTY', isAnonymous: false });
+            setShowFeedbackModal(true);
+        };
+        const handleSubmitFeedback = async (e) => {
+            e.preventDefault();
+            if (feedbackForm.rating === 0) { showMessage('Please select a rating', 'error'); return; }
+            if (!feedbackForm.title.trim()) { showMessage('Please enter a title', 'error'); return; }
+            setGlobalLoading(true);
+            const payload = { title: feedbackForm.title, comment: feedbackForm.comment, rating: feedbackForm.rating, category: feedbackForm.category, isAnonymous: feedbackForm.isAnonymous };
+            const res = await apiCall('post', '/feedback/submit', payload);
+            if (res.ok) { showMessage('✅ Feedback submitted!', 'success'); await fetchFeedbacks(); }
+            else { console.error('Feedback submit error:', res.error?.response?.data); showMessage('❌ Feedback submit failed', 'error'); }
+            setShowFeedbackModal(false); setGlobalLoading(false);
+        };
+        const renderStars = (rating, interactive = false, onStarClick = null) => {
+            return [1, 2, 3, 4, 5].map(i => (
+                <span key={i} className={`rating-star ${i <= (interactive ? hoverRating || rating : rating) ? 'active' : ''}`}
+                      onClick={() => interactive && onStarClick && onStarClick(i)}
+                      onMouseEnter={() => interactive && setHoverRating(i)}
+                      onMouseLeave={() => interactive && setHoverRating(0)}>★</span>
+            ));
+        };
+
+        // ============ PLACEMENT ============
+        const handleApplyToDrive = async (e) => {
+            e.preventDefault();
+            if (!resumeFile) { showMessage('Upload resume', 'error'); return; }
+            if (!selectedDrive || !selectedDrive.id) { showMessage('Invalid drive selected', 'error'); return; }
+            setGlobalLoading(true);
+            const formData = new FormData();
+            formData.append('driveId', String(selectedDrive.id));
+            formData.append('resumeFile', resumeFile, resumeFile.name);
+            const res = await apiCall('post', '/placement/apply', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+            if (res.ok) { showMessage('✅ Applied successfully!', 'success'); await fetchPlacementDrives(); }
+            else { const errMsg = res.error?.response?.data?.message || res.error?.response?.data?.error || res.error?.message || 'Unknown'; console.error('Placement apply error:', res.error?.response?.data); showMessage(`❌ Apply failed: ${errMsg}`, 'error'); }
+            setShowApplyDriveModal(false); setSelectedDrive(null); setResumeFile(null); setResumeFileName(''); setGlobalLoading(false);
+        };
+        const handleResumeFileChange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (!['pdf', 'doc', 'docx'].includes(ext)) { showMessage('Only PDF/DOC/DOCX', 'error'); e.target.value = ''; return; }
+            if (file.size > 5 * 1024 * 1024) { showMessage('Max 5MB', 'error'); e.target.value = ''; return; }
+            setResumeFile(file); setResumeFileName(file.name);
+        };
+
+        // ============ HOSTEL ============
+        const handleCreateHostelComplaint = async (e) => {
+            e.preventDefault();
+            if (!hostelComplaintForm.title.trim() || !hostelComplaintForm.description.trim()) { showMessage('Fill all fields', 'error'); return; }
+            setGlobalLoading(true);
+            const payload = { title: hostelComplaintForm.title, description: hostelComplaintForm.description, category: hostelComplaintForm.category, priority: hostelComplaintForm.priority };
+            const res = await apiCall('post', '/hostel/maintenance', payload);
+            if (res.ok) { showMessage('✅ Maintenance request submitted!', 'success'); await fetchHostelComplaints(); }
+            else showMessage('❌ Failed to submit request', 'error');
+            setShowHostelComplaintModal(false); setHostelComplaintForm({ title: '', description: '', category: 'Plumbing', priority: 'MEDIUM', roomNumber: '' }); setGlobalLoading(false);
+        };
+        const handleLogout = () => { localStorage.clear(); window.location.href = 'index.html'; };
+        const toggleTheme = () => setIsDarkMode(v => !v);
+
+        // ============================================================
+        // RENDER FUNCTIONS
+        // ============================================================
+        const renderDashboard = () => (
+            <div>
+                {/* ===== Modern Welcome Header ===== */}
+                <div className="welcome-gradient rounded-3xl p-7 text-white mb-6 shadow-xl relative overflow-hidden">
+                    <div className="absolute top-4 right-6 opacity-[0.08] text-9xl select-none pointer-events-none">🎓</div>
+                    <div className="relative">
+                        <p className="text-white/70 text-xs font-semibold tracking-widest uppercase mb-1">
+                            {new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' })}
+                        </p>
+                        <h2 className="text-3xl font-bold tracking-tight mb-1">
+                            Welcome back, {safeStr(name).split(' ')[0]}! 👋
+                        </h2>
+                        <p className="text-white/80 text-sm mb-4 max-w-lg">
+                            Track attendance, manage hostel, borrow books, and more.
+                        </p>
+                        <div className="flex gap-2 flex-wrap">
+                            <span className="bg-white/15 backdrop-blur-sm border border-white/20 px-3 py-1 rounded-full text-xs font-medium">🎓 Student</span>
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium border ${apiOnline ? 'bg-green-500/20 border-green-400/30' : 'bg-red-500/20 border-red-400/30'}`}>
+                                {apiOnline ? '🟢 Connected' : '🔴 Offline'}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                {/* ===== Row 1: Primary Stats ===== */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    {[
+                        { title: 'Attendance',       value: `${attendanceStats.percentage}%`, sub: `${attendanceStats.present}/${attendanceStats.total} classes`, icon: '📊', color: '#3b82f6', bubble: 'bg-blue-50 dark:bg-blue-900/30 text-blue-500' },
+                        { title: 'Hostel Bookings',  value: hostelBookings.length,           sub: 'Active',                                                 icon: '🏠', color: '#ec4899', bubble: 'bg-pink-50 dark:bg-pink-900/30 text-pink-500' },
+                        { title: 'Assignments',      value: assignments.length,               sub: `${Object.keys(submittedAssignments).length} submitted`,   icon: '📝', color: '#22c55e', bubble: 'bg-green-50 dark:bg-green-900/30 text-green-500' },
+                        { title: 'Bus Bookings',     value: myBookings.filter(b => b.bookingStatus !== 'CANCELLED').length, sub: 'Tickets',                      icon: '🎫', color: '#8b5cf6', bubble: 'bg-purple-50 dark:bg-purple-900/30 text-purple-500' }
+                    ].map((card) => (
+                        <div key={card.title} className="stat-card" style={{ color: card.color }}>
+                            <div className="flex items-start justify-between">
+                                <div>
+                                    <p className="stat-label">{card.title}</p>
+                                    <p className="stat-value">{card.value}</p>
+                                    <p className="stat-sub">{card.sub}</p>
+                                </div>
+                                <div className={`stat-icon-bubble ${card.bubble}`}>{card.icon}</div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* ===== Row 2: Secondary Stats ===== */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    {[
+                        { title: 'Complaints',     value: complaints.length,   sub: `${complaints.filter(c => c.status === 'PENDING').length} pending`, icon: '📋', color: '#ef4444', bubble: 'bg-red-50 dark:bg-red-900/30 text-red-500' },
+                        { title: 'Events',         value: events.length,       sub: 'Available',                                                       icon: '🎉', color: '#f59e0b', bubble: 'bg-amber-50 dark:bg-amber-900/30 text-amber-500' },
+                        { title: 'Books Borrowed', value: myBorrowings.length, sub: 'Active',                                                          icon: '📚', color: '#f97316', bubble: 'bg-orange-50 dark:bg-orange-900/30 text-orange-500' },
+                        { title: 'Restaurants',    value: restaurants.length,  sub: 'On campus',                                                       icon: '🍔', color: '#10b981', bubble: 'bg-emerald-50 dark:bg-emerald-900/30 text-emerald-500' }
+                    ].map((card) => (
+                        <div key={card.title} className="stat-card" style={{ color: card.color }}>
+                            <div className="flex items-start justify-between">
+                                <div>
+                                    <p className="stat-label">{card.title}</p>
+                                    <p className="stat-value">{card.value}</p>
+                                    <p className="stat-sub">{card.sub}</p>
+                                </div>
+                                <div className={`stat-icon-bubble ${card.bubble}`}>{card.icon}</div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* ===== Refresh button ===== */}
+                <div className="flex justify-end">
+                    <button onClick={loadAllData} className="btn-primary text-sm">🔄 Refresh Data</button>
+                </div>
+            </div>
+        );
+        const renderAttendance = () => (
+            <div>
+                <div className="welcome-gradient rounded-2xl p-6 text-white mb-6 shadow-lg">
+                    <h2 className="text-2xl font-bold welcome-text">📈 Attendance</h2>
+                </div>
+                <div className="card-modern">
+                    <h3 className="text-gray-800 dark:text-white font-bold mb-4">📋 Attendance Records</h3>
+                    {attendanceRecords.length === 0 ? (
+                        <div className="empty-state"><span className="icon">📈</span>No attendance records</div>
+                    ) : attendanceRecords.map((record, i) => (
+                        <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-gray-50 dark:bg-gray-700 mb-2">
+                            <div>
+                                <p className="text-sm font-medium text-gray-800 dark:text-white">{safeStr(record.subject, safeStr(record.subjectName, 'Subject'))}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">{safeStr(record.date)}</p>
+                            </div>
+                            <span className={record.status === 'PRESENT' ? 'badge-present' : 'badge-absent'}>{safeStr(record.status)}</span>
+                        </div>
+                    ))}
+                    <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                        <p className="text-sm text-gray-700 dark:text-gray-300">
+                            <span className="font-semibold">Summary:</span> {attendanceStats.present}/{attendanceStats.total} ({attendanceStats.percentage}%)
+                        </p>
+                    </div>
+                </div>
+            </div>
+        );
+        const renderTimetable = () => {
+            const currentDay = new Date().toLocaleString('en-US', { weekday: 'long' }).toUpperCase();
+            return (
+                <div>
+                    <div className="welcome-gradient rounded-2xl p-6 text-white mb-6 shadow-lg">
+                        <h2 className="text-2xl font-bold welcome-text">📅 Timetable</h2>
+                        <p className="welcome-sub text-sm">Today: {currentDay}</p>
+                    </div>
+                    {timetable.length === 0 ? (
+                        <div className="card-modern empty-state"><span className="icon">📅</span>No timetable available</div>
+                    ) : (
+                        ['MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'].map(day => {
+                            const daySlots = timetable.filter(slot => safeStr(slot.day || slot.dayOfWeek).toUpperCase() === day);
+                            return (
+                                <div key={day} className="day-card">
+                                    <div className="day-header">
+                                        <span>{day.charAt(0) + day.slice(1).toLowerCase()}{day === currentDay && ' (Today)'}</span>
+                                        <span className="text-sm font-normal text-gray-500 dark:text-gray-400">{daySlots.length} classes</span>
+                                    </div>
+                                    {daySlots.length > 0 ? daySlots.map((slot, i) => (
+                                        <div key={i} className="day-slot">
+                                            <div className="day-slot-left">
+                                                <span className="day-slot-subject">{safeStr(slot.subject)}</span>
+                                                <span className="day-slot-detail">• {safeStr(slot.period || slot.timeSlot)}</span>
+                                                <span className="day-slot-block">🏢 {safeStr(slot.block || slot.room, 'Block A')}</span>
+                                            </div>
+                                            <span className={`status-badge status-${day === currentDay ? 'ongoing' : 'upcoming'}`}>{day === currentDay ? 'Today' : 'Scheduled'}</span>
+                                        </div>
+                                    )) : <div className="day-empty">No classes</div>}
+                                </div>
+                            );
+                        })
+                    )}
+                </div>
+            );
+        };
+        const renderNoticeBoard = () => (
+            <div>
+                <div className="welcome-gradient rounded-2xl p-6 text-white mb-6 shadow-lg">
+                    <h2 className="text-2xl font-bold welcome-text">📋 Notice Board</h2>
+                </div>
+                {notices.length === 0 ? (
+                    <div className="card-modern empty-state"><span className="icon">📋</span>No notices available</div>
+                ) : notices.map(notice => (
+                    <div key={notice.id} className="card-modern mb-3 border-l-4 border-blue-500 cursor-pointer hover:shadow-lg transition-shadow" onClick={() => { setSelectedNotice(notice); setShowNoticeDetailModal(true); }}>
+                        <h3 className="font-bold text-gray-800 dark:text-white">{safeStr(notice.title)}</h3>
+                        <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">{safeStr(notice.content || notice.message)}</p>
+                        <div className="flex items-center gap-3 mt-2 text-xs text-gray-500 dark:text-gray-400">
+                            <span>📂 {safeStr(notice.category)}</span><span>📅 {safeStr(notice.createdAt || notice.date)}</span>
+                        </div>
+                    </div>
+                ))}
+                {showNoticeDetailModal && selectedNotice && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay">
+                        <div className="modal-content max-w-2xl">
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-xl font-bold text-gray-800 dark:text-white">📋 Notice Details</h2>
+                                <button onClick={() => { setShowNoticeDetailModal(false); setSelectedNotice(null); }} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
+                            </div>
+                            <h3 className="text-lg font-bold text-gray-800 dark:text-white">{safeStr(selectedNotice.title)}</h3>
+                            <div className="flex items-center gap-3 my-3 text-xs text-gray-500 dark:text-gray-400">
+                                <span className="badge badge-hostel">📂 {safeStr(selectedNotice.category)}</span>
+                                <span>📅 {safeStr(selectedNotice.createdAt || selectedNotice.date)}</span>
+                            </div>
+                            <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{safeStr(selectedNotice.content || selectedNotice.message)}</p>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+        const renderLostFound = () => (
+            <div>
+                <div className="welcome-gradient rounded-2xl p-6 text-white mb-6 shadow-lg">
+                    <div className="flex justify-between items-center flex-wrap gap-3">
+                        <h2 className="text-2xl font-bold welcome-text">🔍 Lost & Found</h2>
+                        <button onClick={() => setShowLostItemModal(true)} className="btn-primary bg-white/20 hover:bg-white/30 text-white border border-white/30">➕ Report Item</button>
+                    </div>
+                </div>
+                {lostItems.length === 0 ? (
+                    <div className="card-modern empty-state"><span className="icon">🔍</span>No items reported</div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {lostItems.map((item) => (
+                            <div key={item.id} className="card-modern border-l-4 border-yellow-500">
+                                {(item.imageUrl || item.image) && <img src={item.imageUrl || item.image} alt={safeStr(item.title)} className="w-full h-32 object-cover rounded-lg mb-2" />}
+                                <div className="flex justify-between items-start">
+                                    <h3 className="font-bold text-gray-800 dark:text-white">{safeStr(item.title)}</h3>
+                                    <span className={`badge ${item.status === 'LOST' ? 'badge-lost' : item.status === 'FOUND' ? 'badge-found' : 'badge-claimed'}`}>{safeStr(item.status)}</span>
+                                </div>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{safeStr(item.description)}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">📍 {safeStr(item.location)}</p>
+                                <p className="text-xs text-gray-500 dark:text-gray-400">📅 {safeStr(item.date)}</p>
+                                {(item.status === 'FOUND' || item.status === 'found') && (
+                                    <button onClick={() => handleClaimItem(item.id)} className="btn-success text-sm py-1 px-3 mt-2">Claim</button>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
+                {showLostItemModal && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay">
+                        <div className="modal-content max-w-2xl">
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-xl font-bold text-gray-800 dark:text-white">📝 Report Item</h2>
+                                <button onClick={() => setShowLostItemModal(false)} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
+                            </div>
+                            <form onSubmit={handleReportLostItem}>
+                                <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Title *</label><input type="text" value={lostItemForm.title} onChange={(e) => setLostItemForm({...lostItemForm, title: e.target.value})} className="input-field" required /></div>
+                                <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Description</label><textarea value={lostItemForm.description} onChange={(e) => setLostItemForm({...lostItemForm, description: e.target.value})} rows="2" className="input-field" /></div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Type</label><select value={lostItemForm.category} onChange={(e) => setLostItemForm({...lostItemForm, category: e.target.value})} className="input-field"><option value="LOST">Lost</option><option value="FOUND">Found</option></select></div>
+                                    <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Date</label><input type="date" value={lostItemForm.date} onChange={(e) => setLostItemForm({...lostItemForm, date: e.target.value})} className="input-field" /></div>
+                                </div>
+                                <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Location *</label><input type="text" value={lostItemForm.location} onChange={(e) => setLostItemForm({...lostItemForm, location: e.target.value})} className="input-field" required /></div>
+                                <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Contact</label><input type="text" value={lostItemForm.contactInfo} onChange={(e) => setLostItemForm({...lostItemForm, contactInfo: e.target.value})} className="input-field" /></div>
+                                <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Image</label><input type="file" accept="image/*" onChange={handleLostItemImageChange} className="input-field" />{lostItemForm.imagePreview && <img src={lostItemForm.imagePreview} alt="Preview" className="image-preview-item" />}</div>
+                                <button type="submit" disabled={globalLoading} className="w-full btn-primary py-2">{globalLoading ? 'Sending...' : '📤 Report Item'}</button>
+                            </form>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+        const renderAssignments = () => (
+            <div>
+                <div className="welcome-gradient rounded-2xl p-6 text-white mb-6 shadow-lg">
+                    <h2 className="text-2xl font-bold welcome-text">📝 Assignments</h2>
+                </div>
+                {assignments.length === 0 ? (
+                    <div className="card-modern empty-state"><span className="icon">📝</span>No assignments available</div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {assignments.map((ass) => {
+                            const submitted = submittedAssignments[ass.id];
+                            return (
+                                <div key={ass.id} className="card-modern border-l-4 border-purple-500">
+                                    <h3 className="font-bold text-gray-800 dark:text-white">{safeStr(ass.title)}</h3>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">{safeStr(ass.subject)} • Max: {safeStr(ass.maxScore || ass.maxMarks)}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">📅 {safeStr(ass.deadline || ass.dueDate)}</p>
+                                    {submitted ? (
+                                        <div className="mt-2 p-2 bg-green-50 dark:bg-green-900/20 rounded-lg"><p className="text-xs text-green-700 dark:text-green-400">✅ {submitted.fileName}</p></div>
+                                    ) : (
+                                        <button onClick={() => { setSelectedAssignment(ass); setShowSubmitAssignmentModal(true); }} className="btn-success text-sm py-1 px-3 mt-2">📤 Submit</button>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
+                {showSubmitAssignmentModal && selectedAssignment && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay">
+                        <div className="modal-content max-w-2xl">
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-xl font-bold text-gray-800 dark:text-white">📤 Submit Assignment</h2>
+                                <button onClick={() => { setShowSubmitAssignmentModal(false); setSubmitFile(null); setSubmitFileName(''); }} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
+                            </div>
+                            <form onSubmit={handleSubmitAssignment}>
+                                <div className="mb-4"><h3 className="font-bold text-gray-800 dark:text-white">{safeStr(selectedAssignment.title)}</h3></div>
+                                <div className="mb-3">
+                                    <label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Upload File * (PDF/DOC/DOCX)</label>
+                                    <input type="file" onChange={handleAssignmentFileChange} className="input-field" accept=".pdf,.doc,.docx" required />
+                                    {submitFileName && <p className="text-xs text-green-600 dark:text-green-400 mt-1">✅ {submitFileName}</p>}
+                                </div>
+                                <button type="submit" disabled={globalLoading} className="w-full btn-success py-2">{globalLoading ? 'Uploading...' : '📤 Submit'}</button>
+                            </form>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+        const renderLibrary = () => (
+            <div>
+                <div className="welcome-gradient rounded-2xl p-6 text-white mb-6 shadow-lg">
+                    <h2 className="text-2xl font-bold welcome-text">📖 Library</h2>
+                </div>
+                {myBorrowings.length > 0 && (
+                    <div className="card-modern mb-6">
+                        <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4">📚 My Borrowings</h3>
+                        {myBorrowings.map(b => (
+                            <div key={b.id} className="flex justify-between items-center p-3 border rounded-lg mb-2">
+                                <div>
+                                    <p className="font-bold text-gray-800 dark:text-white">{safeStr(b.bookTitle, safeStr(b.title, 'Book'))}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">Borrowed: {safeStr(b.borrowDate)} • Due: {safeStr(b.dueDate)}</p>
+                                </div>
+                                <span className={`badge ${b.status === 'BORROWED' ? 'badge-borrowed' : 'badge-available'}`}>{safeStr(b.status)}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
+                {books.length === 0 ? (
+                    <div className="card-modern empty-state"><span className="icon">📖</span>No books available</div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {books.map(book => (
+                            <div key={book.id} className="card-modern">
+                                <h3 className="font-bold text-gray-800 dark:text-white">{safeStr(book.title)}</h3>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">by {safeStr(book.author)}</p>
+                                <div className="flex flex-wrap gap-2 mt-2">
+                                    <span className={`badge ${book.availableCopies > 0 ? 'badge-available' : 'badge-borrowed'}`}>{book.availableCopies > 0 ? 'Available' : 'Not Available'}</span>
+                                    <span className="text-xs text-gray-500 dark:text-gray-400">{book.availableCopies}/{book.totalCopies}</span>
+                                </div>
+                                {book.availableCopies > 0 && (
+                                    <button onClick={() => { setSelectedBook(book); setShowReserveModal(true); }} className="btn-success text-sm py-1 px-3 mt-2">📖 Reserve</button>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                )}
+                {showReserveModal && selectedBook && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay">
+                        <div className="modal-content">
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-xl font-bold text-gray-800 dark:text-white">📖 Reserve Book</h2>
+                                <button onClick={() => setShowReserveModal(false)} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
+                            </div>
+                            <div className="space-y-4">
+                                <p className="font-semibold text-gray-800 dark:text-white">{safeStr(selectedBook.title)}</p>
+                                <p className="text-sm text-gray-600 dark:text-gray-400">by {safeStr(selectedBook.author)}</p>
+                                <div className="flex gap-2">
+                                    <button onClick={handleBorrowBook} disabled={globalLoading} className="btn-success flex-1 py-2">{globalLoading ? 'Reserving...' : 'Confirm Reserve'}</button>
+                                    <button onClick={() => setShowReserveModal(false)} className="btn-danger py-2 px-4">Cancel</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+        const renderComplaints = () => (
+            <div>
+                <div className="welcome-gradient rounded-2xl p-6 text-white mb-6 shadow-lg">
+                    <div className="flex justify-between items-center flex-wrap gap-3">
+                        <h2 className="text-2xl font-bold welcome-text">📋 My Complaints</h2>
+                        <button onClick={() => setShowComplaintModal(true)} className="btn-primary bg-white/20 hover:bg-white/30 text-white border border-white/30">➕ Raise Complaint</button>
+                    </div>
+                </div>
+                {complaints.length === 0 ? (
+                    <div className="card-modern empty-state"><span className="icon">📋</span>No complaints yet</div>
+                ) : complaints.map(complaint => (
+                    <div key={complaint.id} className={`card-modern mb-4 border-l-4 ${complaint.priority === 'HIGH' ? 'complaint-priority-high' : 'complaint-priority-medium'}`}>
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <h3 className="font-bold text-gray-800 dark:text-white">{safeStr(complaint.title)}</h3>
+                                <p className="text-sm text-gray-600 dark:text-gray-300">{safeStr(complaint.description)}</p>
+                                <span className={`badge ${getComplaintStatusBadge(complaint.status)}`}>{safeStr(complaint.status)}</span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400 ml-2">📂 {safeStr(complaint.category)}</span>
+                            </div>
+                            <button onClick={() => { setSelectedComplaint(complaint); setShowComplaintDetailModal(true); }} className="btn-primary text-sm py-1 px-3">View</button>
+                        </div>
+                    </div>
+                ))}
+                {showComplaintModal && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay">
+                        <div className="modal-content max-w-2xl">
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-xl font-bold text-gray-800 dark:text-white">📝 Raise Complaint</h2>
+                                <button onClick={() => setShowComplaintModal(false)} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
+                            </div>
+                            <form onSubmit={handleCreateComplaint}>
+                                <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Title *</label><input type="text" value={complaintForm.title} onChange={(e) => setComplaintForm({...complaintForm, title: e.target.value})} className="input-field" required /></div>
+                                <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Description *</label><textarea value={complaintForm.description} onChange={(e) => setComplaintForm({...complaintForm, description: e.target.value})} rows="3" className="input-field" required /></div>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Category</label><select value={complaintForm.category} onChange={(e) => setComplaintForm({...complaintForm, category: e.target.value})} className="input-field"><option value="Hostel">🏠 Hostel</option><option value="Library">📚 Library</option><option value="Classroom">🏫 Classroom</option><option value="Internet">🌐 Internet</option><option value="Transport">🚌 Transport</option><option value="Cafeteria">☕ Cafeteria</option></select></div>
+                                    <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Priority</label><select value={complaintForm.priority} onChange={(e) => setComplaintForm({...complaintForm, priority: e.target.value})} className="input-field"><option value="HIGH">🔴 High</option><option value="MEDIUM">🟡 Medium</option><option value="LOW">🟢 Low</option></select></div>
+                                </div>
+                                <button type="submit" disabled={globalLoading} className="w-full btn-primary py-2">{globalLoading ? 'Submitting...' : '📤 Submit'}</button>
+                            </form>
+                        </div>
+                    </div>
+                )}
+                {showComplaintDetailModal && selectedComplaint && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay">
+                        <div className="modal-content max-w-2xl">
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-xl font-bold text-gray-800 dark:text-white">📋 Details</h2>
+                                <button onClick={() => { setShowComplaintDetailModal(false); setSelectedComplaint(null); }} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
+                            </div>
+                            <div className="space-y-4">
+                                <div>
+                                    <h3 className="text-lg font-bold text-gray-800 dark:text-white">{safeStr(selectedComplaint.title)}</h3>
+                                    <span className={`badge ${getComplaintStatusBadge(selectedComplaint.status)}`}>{safeStr(selectedComplaint.status)}</span>
+                                    <p className="text-gray-700 dark:text-gray-300 mt-2">{safeStr(selectedComplaint.description)}</p>
+                                </div>
+                                <div className="border-t pt-3">
+                                    <h4 className="font-semibold text-gray-800 dark:text-white mb-2">💬 Comments</h4>
+                                    {selectedComplaint.comments?.map((c, i) => (
+                                        <div key={i} className="p-2 bg-gray-50 dark:bg-gray-700 rounded-lg mb-1">
+                                            <span className="font-semibold text-sm text-gray-800 dark:text-white">{safeStr(c.user)}: </span>
+                                            <span className="text-sm text-gray-600 dark:text-gray-300">{safeStr(c.text)}</span>
+                                        </div>
+                                    ))}
+                                    <div className="flex gap-2 mt-2">
+                                        <input type="text" value={commentText} onChange={(e) => setCommentText(e.target.value)} placeholder="Add comment..." className="input-field flex-1" />
+                                        <button onClick={() => handleAddComment(selectedComplaint.id)} className="btn-primary" disabled={globalLoading || !commentText.trim()}>Post</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+        const renderEvents = () => (
+            <div>
+                <div className="welcome-gradient rounded-2xl p-6 text-white mb-6 shadow-lg">
+                    <h2 className="text-2xl font-bold welcome-text">📅 Events</h2>
+                </div>
+                {events.length === 0 ? (
+                    <div className="card-modern empty-state"><span className="icon">📅</span>No events available</div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        {events.map((event) => (
+                            <div key={event.id} className="card-modern">
+                                <div className="w-full h-48 bg-gradient-to-r from-blue-400 to-purple-400 rounded-lg mb-4 flex items-center justify-center text-4xl overflow-hidden">
+                                    {(event.image || event.imageUrl) ? <img src={event.image || event.imageUrl} alt={safeStr(event.title)} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} /> : <span>📅</span>}
+                                </div>
+                                <h3 className="text-xl font-bold text-gray-800 dark:text-white mt-2">{safeStr(event.title)}</h3>
+                                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">{safeStr(event.description)}</p>
+                                <div className="space-y-2 mt-3 text-sm text-gray-600 dark:text-gray-400">
+                                    <div>📅 {safeStr(event.eventDate || event.date)} at {safeStr(event.eventTime || event.time)}</div>
+                                    <div>📍 {safeStr(event.venue)}</div>
+                                </div>
+                                <div className="mt-3 flex gap-2 flex-wrap">
+                                    {eventRegistrations[event.id] ? <span className="text-sm text-green-600 dark:text-green-400 font-semibold">✅ Registered</span> : <button onClick={() => handleRegisterEvent(event.id)} className="btn-success text-sm py-1 px-3">📝 Register</button>}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        );
+        const renderTransport = () => (
+            <div>
+                <div className="welcome-gradient rounded-2xl p-6 text-white mb-6 shadow-lg">
+                    <h2 className="text-2xl font-bold welcome-text">🚌 Transport</h2>
+                </div>
+
+                {myBookings.filter(b => b.bookingStatus !== 'CANCELLED').length > 0 && (
+                    <div className="card-modern mb-6">
+                        <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4">🎫 My Bookings</h3>
+                        {myBookings.filter(b => b.bookingStatus !== 'CANCELLED').map(booking => (
+                            <div key={booking.id} className="flex justify-between items-center p-3 border rounded-lg mb-2">
+                                <div>
+                                    <p className="font-bold text-gray-800 dark:text-white">{safeStr(booking.busNumber, safeStr(booking.bus?.busNumber, 'Bus'))}</p>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">Seat: {safeStr(booking.seatNumber)} • ₹{safeStr(booking.amount, '50')}</p>
+                                </div>
+                                <button onClick={() => handleCancelBooking(booking.id)} className="btn-danger text-sm py-1 px-3">Cancel</button>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                <div className="card-modern mb-6">
+                    <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4">🚌 Available Buses</h3>
+                    {buses.length === 0 ? (
+                        <div className="empty-state"><span className="icon">🚌</span>No buses available</div>
+                    ) : (
+                        <table className="w-full text-sm">
+                            <thead><tr className="border-b"><th className="px-4 py-2 text-left">Bus</th><th className="px-4 py-2 text-left">Driver</th><th className="px-4 py-2 text-left">Capacity</th><th className="px-4 py-2 text-left">Action</th></tr></thead>
+                            <tbody>
+                            {buses.map(bus => (
+                                <tr key={bus.id} className="border-t">
+                                    <td className="px-4 py-2 font-bold text-blue-600 dark:text-blue-400">{safeStr(bus.busNumber)}</td>
+                                    <td className="px-4 py-2">{safeStr(bus.driverName)}</td>
+                                    <td className="px-4 py-2">{safeStr(bus.capacity)}</td>
+                                    <td className="px-4 py-2"><button onClick={() => openBookingModal(bus)} className="btn-success text-sm py-1 px-3">🎫 Book</button></td>
+                                </tr>
+                            ))}
+                            </tbody>
+                        </table>
+                    )}
+                </div>
+
+                {busRoutes.length > 0 && (
+                    <div className="card-modern">
+                        <h3 className="text-xl font-bold text-gray-800 dark:text-white mb-4">🛣️ Routes</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {busRoutes.map(route => (
+                                <div key={route.id} className="border rounded-lg p-4">
+                                    <h4 className="font-bold text-gray-800 dark:text-white">{safeStr(route.routeName)}</h4>
+                                    <p className="text-sm text-gray-500 dark:text-gray-400">📍 {safeStr(route.startLocation)} → {safeStr(route.endLocation)}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {showBookingModal && selectedBus && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay">
+                        <div className="modal-content max-w-2xl">
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-xl font-bold text-gray-800 dark:text-white">🎫 Book - {safeStr(selectedBus.busNumber)}</h2>
+                                <button onClick={() => { setShowBookingModal(false); setSelectedBus(null); setSelectedSeat(null); setSelectedSchedule(null); }} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
+                            </div>
+                            <div className="seat-grid mb-4">
+                                {availableSeats.map((seat, i) => {
+                                    const seatNum = seat.seatNumber || seat;
+                                    const isAvail = seat.isAvailable !== undefined ? seat.isAvailable : true;
+                                    return (
+                                        <button key={i} className={`seat-btn ${isAvail ? 'seat-available' : 'seat-booked'} ${selectedSeat === seatNum ? 'seat-selected' : ''}`} onClick={() => isAvail && setSelectedSeat(seatNum)} disabled={!isAvail}>{seatNum}</button>
+                                    );
+                                })}
+                            </div>
+                            <div className="flex gap-3">
+                                <button onClick={handleProceedToPay} disabled={!selectedSeat} className={`flex-1 py-2 rounded-lg font-semibold ${!selectedSeat ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'btn-success'}`}>{selectedSeat ? `Pay ₹50` : 'Select seat'}</button>
+                                <button onClick={() => { setShowBookingModal(false); setSelectedBus(null); setSelectedSeat(null); }} className="flex-1 py-2 rounded-lg font-semibold bg-gray-200 dark:bg-gray-600">Cancel</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {showPaymentModal && selectedBus && selectedSeat && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay">
+                        <div className="modal-content max-w-md">
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-xl font-bold text-gray-800 dark:text-white">💳 UPI Payment</h2>
+                                <button onClick={() => setShowPaymentModal(false)} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
+                            </div>
+                            <div className="space-y-4">
+                                <p className="text-sm">Seat: <strong>{selectedSeat}</strong> • Amount: <strong>₹{paymentAmount}</strong></p>
+                                <input type="text" value={paymentUpiId} onChange={(e) => setPaymentUpiId(e.target.value)} placeholder="yourname@upi" className="input-field" />
+                                <button onClick={processPayment} disabled={globalLoading} className="btn-success w-full py-2">{globalLoading ? 'Processing...' : `Pay ₹${paymentAmount}`}</button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+        const renderFeedback = () => (
+            <div>
+                <div className="welcome-gradient rounded-2xl p-6 text-white mb-6 shadow-lg">
+                    <div className="flex justify-between items-center flex-wrap gap-3">
+                        <h2 className="text-2xl font-bold welcome-text">📝 Feedback</h2>
+                        <button onClick={openFeedbackModal} className="btn-primary bg-white/20 hover:bg-white/30 text-white border border-white/30">📝 Submit Feedback</button>
+                    </div>
+                </div>
+                {myFeedbacks.length === 0 ? (
+                    <div className="card-modern empty-state"><span className="icon">📝</span>No feedback yet</div>
+                ) : (
+                    <div className="space-y-3">
+                        {myFeedbacks.map(fb => (
+                            <div key={fb.id} className="border-l-4 border-purple-500 p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                <h4 className="font-bold text-gray-800 dark:text-white">{safeStr(fb.title)}</h4>
+                                <div className="flex items-center gap-2 mt-1"><span className="text-yellow-500">{renderStars(fb.rating || fb.overallRating || 0)}</span></div>
+                                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{safeStr(fb.comment || fb.comments)}</p>
+                            </div>
+                        ))}
+                    </div>
+                )}
+                {showFeedbackModal && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay">
+                        <div className="modal-content max-w-2xl">
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-xl font-bold text-gray-800 dark:text-white">📝 Submit Feedback</h2>
+                                <button onClick={() => setShowFeedbackModal(false)} className="text-gray-500 hover:text-gray-700 text-2xl">×</button>
+                            </div>
+                            <form onSubmit={handleSubmitFeedback}>
+                                <div className="mb-3">
+                                    <label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Title *</label>
+                                    <input type="text" value={feedbackForm.title} onChange={(e) => setFeedbackForm({...feedbackForm, title: e.target.value})} className="input-field" required />
+                                </div>
+                                {randomQuestions.map((q, idx) => (
+                                    <div key={idx} className="mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                                        <label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">{q}</label>
+                                        <div className="flex items-center gap-1">{renderStars(feedbackForm.rating, true, (i) => setFeedbackForm({...feedbackForm, rating: i}))}</div>
+                                    </div>
+                                ))}
+                                <div className="mb-3">
+                                    <label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Comments *</label>
+                                    <textarea value={feedbackForm.comment} onChange={(e) => setFeedbackForm({...feedbackForm, comment: e.target.value})} rows="3" className="input-field" required />
+                                </div>
+                                <button type="submit" disabled={globalLoading} className="w-full btn-primary py-2">
+                                    {globalLoading ? 'Submitting...' : '📤 Submit'}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+        const renderCafeteria = () => (
+            <div>
+                <div className="welcome-gradient rounded-2xl p-6 text-white mb-6 shadow-lg">
+                    <div>
+                        <h2 className="text-2xl font-bold welcome-text">🍽️ Campus Cafeteria</h2>
+                        <p className="welcome-sub text-sm">Browse menus from all on-campus restaurants. Ordering is done at the counter.</p>
+                    </div>
+                </div>
+                {restaurants.length === 0 ? (
+                    <div className="card-modern empty-state"><span className="icon">🍽️</span>No restaurants available</div>
+                ) : (
+                    <div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+                            {restaurants.map(r => (
+                                <div key={r.id} className={`card-modern p-4 cursor-pointer transition-all ${selectedRestaurant?.id === r.id ? 'border-2 border-yellow-500 shadow-lg' : 'hover:shadow-md'}`} onClick={() => selectRestaurant(r)} >
+                                    <div className="text-center">
+                                        <div className="text-4xl mb-2">🍽️</div>
+                                        <h4 className="font-bold text-gray-800 dark:text-white text-sm truncate">{safeStr(r.name)}</h4>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1"> 👤 {safeStr(r.owner?.name || r.ownerName || r.owner, 'Campus Cafeteria')} </p>
+                                        {r.category && <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">🏷️ {safeStr(r.category)}</p>}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                        {selectedRestaurant && (
+                            <div className="card-modern">
+                                <div className="flex justify-between items-start flex-wrap gap-3 mb-4 pb-4 border-b border-gray-200 dark:border-gray-700">
+                                    <div>
+                                        <h3 className="text-2xl font-bold text-gray-800 dark:text-white">{safeStr(selectedRestaurant.name)}</h3>
+                                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-1"> 👤 Owner: <span className="font-semibold">{safeStr(selectedRestaurant.owner?.name || selectedRestaurant.ownerName || selectedRestaurant.owner, 'Campus Cafeteria')}</span> </p>
+                                        {selectedRestaurant.description && ( <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{safeStr(selectedRestaurant.description)}</p> )}
+                                    </div>
+                                    <span className="bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-3 py-1 rounded-full text-xs font-semibold"> {restaurantItems.length} items </span>
+                                </div>
+                                {restaurantItems.length === 0 ? (
+                                    <div className="empty-state"> <span className="icon">🍽️</span> No items available in this restaurant </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {restaurantItems.map(item => (
+                                            <div key={item.id} className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg hover:shadow-md transition-shadow">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <h4 className="font-bold text-gray-800 dark:text-white">{safeStr(item.name)}</h4>
+                                                    <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${ item.category === 'VEG' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : item.category === 'NON-VEG' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' : item.category === 'BEVERAGE' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300' }`}> {safeStr(item.category, 'Item')} </span>
+                                                </div>
+                                                <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">{safeStr(item.description, '—')}</p>
+                                                <div className="flex justify-between items-center">
+                                                    <p className="text-lg font-bold text-yellow-600 dark:text-yellow-400">₹{safeStr(item.price, '0')}</p>
+                                                    {item.preparationTime && ( <span className="text-xs text-gray-400">⏱️ {safeStr(item.preparationTime)} min</span> )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                                <div className="mt-6 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-sm text-gray-700 dark:text-gray-300"> ℹ️ Menu is for reference only. To place an order, please visit the restaurant counter. </div>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+        );
+        const renderPlacement = () => (
+            <div>
+                <div className="welcome-gradient rounded-2xl p-6 text-white mb-6 shadow-lg">
+                    <h2 className="text-2xl font-bold welcome-text">💼 Placement</h2>
+                </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div className="stat-card border-l-4 border-blue-500"><p className="stat-label">Placed</p><p className="stat-value">{placementStats.placedStudents || 0}</p></div>
+                    <div className="stat-card border-l-4 border-green-500"><p className="stat-label">Highest</p><p className="stat-value">₹{((placementStats.highestPackage || 0) / 100000).toFixed(1)} LPA</p></div>
+                    <div className="stat-card border-l-4 border-purple-500"><p className="stat-label">Average</p><p className="stat-value">₹{((placementStats.averagePackage || 0) / 100000).toFixed(1)} LPA</p></div>
+                    <div className="stat-card border-l-4 border-yellow-500"><p className="stat-label">Drives</p><p className="stat-value">{placementStats.activeDrives || 0}</p></div>
+                </div>
+                {placementDrives.length === 0 ? (
+                    <div className="card-modern empty-state"><span className="icon">💼</span>No placement drives available</div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {placementDrives.map(drive => (
+                            <div key={drive.id} className="card-modern border-l-4 border-blue-500">
+                                <div className="flex justify-between items-start">
+                                    <h3 className="font-bold text-gray-800 dark:text-white">{safeStr(drive.title)}</h3>
+                                    <span className={`badge ${drive.status === 'UPCOMING' ? 'badge-pending' : 'badge-inprogress'}`}>{safeStr(drive.status)}</span>
+                                </div>
+                                <p className="text-sm text-gray-600 dark:text-gray-300">{safeStr(drive.companyName)}</p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400">{safeStr(drive.description)}</p>
+                                <div className="flex flex-wrap gap-2 mt-2 text-sm"><span>💰 {safeStr(drive.salaryPackage)}</span><span>📅 {safeStr(drive.driveDate)}</span></div>
+                                {!drive.isApplied && new Date(drive.applicationEndDate || drive.application_end_date || drive.deadline) >= new Date() && (
+                                <button onClick={() => { setSelectedDrive(drive); setShowApplyDriveModal(true); }} className="btn-success text-sm py-1 px-3 mt-2">📝 Apply</button>
+                            )}
+                               {!drive.isApplied && new Date(drive.applicationEndDate || drive.application_end_date || drive.deadline) < new Date() && (
+                               <span className="text-sm text-red-500 dark:text-red-400 font-semibold">⛔ Applications closed</span>
+                            )}
+                            </div>
+                        ))}
+                    </div>
+                )}
+                {showApplyDriveModal && selectedDrive && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay">
+                        <div className="modal-content max-w-2xl">
+                            <div className="flex justify-between items-center mb-4">
+                                <h2 className="text-xl font-bold text-gray-800 dark:text-white">📝 Apply</h2>
+                                <button onClick={() => setShowApplyDriveModal(false)} className="text-gray-500 text-2xl">×</button>
+                            </div>
+                            <form onSubmit={handleApplyToDrive}>
+                                <div className="mb-3">
+                                    <label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Resume *</label>
+                                    <input type="file" accept=".pdf,.doc,.docx" onChange={handleResumeFileChange} className="input-field" required />
+                                    {resumeFileName && <p className="text-xs text-green-600 mt-1">✅ {resumeFileName}</p>}
+                                </div>
+                                <button type="submit" disabled={globalLoading} className="w-full btn-success py-2">{globalLoading ? 'Submitting...' : '📤 Submit'}</button>
+                            </form>
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+        const renderCourseMaterials = () => (
+            <div>
+                <div className="welcome-gradient rounded-2xl p-6 text-white mb-6 shadow-lg">
+                    <h2 className="text-2xl font-bold welcome-text">📚 Course Materials</h2>
+                    <p className="welcome-sub text-sm">Notes, syllabus, assignments and reference materials</p>
+                </div>
+                <div className="card-modern mb-4">
+                    <div className="flex justify-between items-center flex-wrap gap-3">
+                        <h3 className="text-lg font-bold text-gray-800 dark:text-white"> 📂 Materials ({courseMaterials.filter(m => materialFilter === 'ALL' || safeStr(m.subject || m.subjectName) === materialFilter).length}) </h3>
+                        <select value={materialFilter} onChange={(e) => setMaterialFilter(e.target.value)} className="input-field" style={{ width: 'auto', minWidth: '150px' }}>
+                            <option value="ALL">All Subjects</option>
+                            {materialSubjects.length > 0 ? materialSubjects.map(s => <option key={s} value={s}>{s}</option>) : (
+                                <React.Fragment>
+                                    <option value="DBMS">DBMS</option>
+                                    <option value="OS">OS</option>
+                                    <option value="CN">CN</option>
+                                    <option value="DSA">DSA</option>
+                                    <option value="AI">AI</option>
+                                    <option value="ML">ML</option>
+                                </React.Fragment>
+                            )}
+                        </select>
+                    </div>
+                </div>
+                {courseMaterials.length === 0 ? (
+                    <div className="card-modern empty-state">
+                        <span className="icon">📚</span>
+                        <p>No course materials available yet</p>
+                        <p className="text-xs mt-1">Materials uploaded by faculty will appear here</p>
+                    </div>
+                ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {courseMaterials.filter(m => materialFilter === 'ALL' || safeStr(m.subject || m.subjectName) === materialFilter).map(material => (
+                            <div key={material.id} className="material-item bg-white dark:bg-gray-800">
+                                <div className="flex justify-between items-start flex-wrap gap-2">
+                                    <div className="flex-1">
+                                        <div className="flex items-center gap-2 flex-wrap mb-2">
+                                            <h4 className="font-bold text-gray-800 dark:text-white">{safeStr(material.title)}</h4>
+                                            <span className="text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded-full font-semibold">{safeStr(material.subject || material.subjectName)}</span>
+                                            <span className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 px-2 py-0.5 rounded-full font-semibold">{safeStr(material.type || material.materialType)}</span>
+                                        </div>
+                                        <p className="text-sm text-gray-600 dark:text-gray-300">{safeStr(material.description)}</p>
+                                        <div className="flex flex-wrap gap-3 mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                            <span>👤 {safeStr(material.uploadedBy || material.uploadedByName, 'Faculty')}</span>
+                                            <span>📅 {safeStr(material.uploadedAt || material.createdAt)}</span>
+                                            {material.fileSize && <span>📦 {safeStr(material.fileSize)}</span>}
+                                        </div>
+                                    </div>
+                                    {(material.fileUrl || material.downloadUrl) && (
+                                        <a href={material.fileUrl || material.downloadUrl} target="_blank" rel="noopener noreferrer" className="btn-primary text-sm py-1 px-3">⬇️ Download</a>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+        );
+        const renderLeaves = () => {
+    const statusBadge = (status) => {
+        const s = (status || 'PENDING').toUpperCase();
+        if (s === 'APPROVED') return 'badge-resolved';
+        if (s === 'REJECTED') return 'badge-rejected';
+        if (s === 'CANCELLED') return 'badge-borrowed';
+        return 'badge-pending';
+    };
+
+    return (
+        <div>
+            <div className="welcome-gradient rounded-2xl p-6 text-white mb-6 shadow-lg">
+                <div className="flex justify-between items-center flex-wrap gap-3">
+                    <div>
+                        <h2 className="text-2xl font-bold welcome-text">📋 My Leaves</h2>
+                        <p className="welcome-sub text-sm">Apply for leave and track approval status</p>
+                    </div>
+                    <button
+                        onClick={() => {
+                            setLeaveForm({
+                                title: '', description: '',
+                                startDate: '', endDate: '',
+                                leaveType: 'CASUAL', proofFile: null
+                            });
+                            setShowLeaveModal(true);
+                        }}
+                        className="btn-primary bg-white/20 hover:bg-white/30 text-white border border-white/30"
+                    >
+                        ＋ Apply for Leave
+                    </button>
+                </div>
+            </div>
+
+            {leaves.length === 0 ? (
+                <div className="card-modern empty-state">
+                    <span className="icon">📋</span>
+                    No leave requests yet. Click "Apply for Leave" to submit one.
+                </div>
+            ) : leaves.map(leave => {
+                const status = (leave.status || 'PENDING').toUpperCase();
+                const canCancel = status === 'PENDING';
+                return (
+                    <div key={leave.id} className={`card-modern mb-3 border-l-4 ${
+                        status === 'PENDING' ? 'border-yellow-500'
+                        : status === 'APPROVED' ? 'border-green-500'
+                        : status === 'REJECTED' ? 'border-red-500'
+                        : 'border-gray-400'
+                    }`}>
+                        <div className="flex justify-between items-start flex-wrap gap-3">
+                            <div className="flex-1 min-w-[260px]">
+                                <h4 className="font-bold text-gray-800 dark:text-white">
+                                    {safeStr(leave.title, 'Leave Request')}
+                                </h4>
+                                <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+                                    {safeStr(leave.description)}
+                                </p>
+                                <div className="flex flex-wrap gap-3 mt-2 text-xs text-gray-500 dark:text-gray-400">
+                                    <span>📅 {safeStr(leave.startDate)} → {safeStr(leave.endDate)}</span>
+                                    {leave.totalDays != null && <span>📆 {leave.totalDays} day(s)</span>}
+                                    {leave.leaveType && <span>🏷️ {safeStr(leave.leaveType)}</span>}
+                                    <span className={`badge ${statusBadge(status)}`}>{status}</span>
+                                </div>
+                                {leave.documentUrl ? (
+                                    <a
+                                        href={leave.documentUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="btn-primary text-xs py-1 px-3 mt-3 inline-block"
+                                    >
+                                        📎 View Submitted Proof
+                                    </a>
+                                ) : (
+                                    <p className="text-xs text-gray-400 mt-3 italic">
+                                        No proof attached
+                                    </p>
+                                )}
+                                {leave.reasonForRejection && (
+                                    <p className="text-xs text-red-500 mt-2">
+                                        ❌ {safeStr(leave.reasonForRejection)}
+                                    </p>
+                                )}
+                            </div>
+                            {canCancel && (
+                                <button
+                                    onClick={() => handleCancelLeave(leave.id)}
+                                    className="btn-danger text-xs py-1 px-3"
+                                >
+                                    Cancel
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                );
+            })}
+
+            {showLeaveModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay">
+                    <div className="modal-content max-w-2xl">
+                        <div className="flex justify-between items-center mb-4">
+                            <h2 className="text-xl font-bold text-gray-800 dark:text-white">📝 Apply for Leave</h2>
+                            <button
+                                onClick={() => setShowLeaveModal(false)}
+                                className="text-gray-500 hover:text-gray-700 text-2xl"
+                            >×</button>
+                        </div>
+                        <form onSubmit={handleApplyLeave}>
+                            <div className="mb-3">
+                                <label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Title *</label>
+                                <input
+                                    type="text"
+                                    value={leaveForm.title}
+                                    onChange={(e) => setLeaveForm({ ...leaveForm, title: e.target.value })}
+                                    className="input-field"
+                                    placeholder="e.g. Medical Leave"
+                                    required
+                                />
+                            </div>
+                            <div className="mb-3">
+                                <label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Description *</label>
+                                <textarea
+                                    value={leaveForm.description}
+                                    onChange={(e) => setLeaveForm({ ...leaveForm, description: e.target.value })}
+                                    rows="3"
+                                    className="input-field"
+                                    placeholder="Reason for leave"
+                                    required
+                                />
+                            </div>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div className="mb-3">
+                                    <label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Start Date *</label>
+                                    <input
+                                        type="date"
+                                        value={leaveForm.startDate}
+                                        onChange={(e) => setLeaveForm({ ...leaveForm, startDate: e.target.value })}
+                                        className="input-field"
+                                        required
+                                    />
+                                </div>
+                                <div className="mb-3">
+                                    <label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">End Date *</label>
+                                    <input
+                                        type="date"
+                                        value={leaveForm.endDate}
+                                        onChange={(e) => setLeaveForm({ ...leaveForm, endDate: e.target.value })}
+                                        className="input-field"
+                                        required
+                                    />
+                                </div>
+                            </div>
+                            <div className="mb-3">
+                                <label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Leave Type *</label>
+                                <select
+                                    value={leaveForm.leaveType}
+                                    onChange={(e) => setLeaveForm({ ...leaveForm, leaveType: e.target.value })}
+                                    className="input-field"
+                                >
+                                    <option value="CASUAL">Casual</option>
+                                    <option value="SICK">Sick</option>
+                                    <option value="EMERGENCY">Emergency</option>
+                                    <option value="STUDY">Study</option>
+                                    <option value="VACATION">Vacation</option>
+                                    <option value="OTHER">Other</option>
+                                </select>
+                            </div>
+                            <div className="mb-3">
+                                <label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">
+                                    Proof Document (PDF / Image — optional)
+                                </label>
+                                <input
+                                    type="file"
+                                    accept=".pdf,.jpg,.jpeg,.png"
+                                    onChange={(e) => {
+                                        const f = e.target.files[0];
+                                        if (!f) return;
+                                        if (f.size > 10 * 1024 * 1024) {
+                                            showMessage('File too large (max 10MB)', 'error');
+                                            e.target.value = '';
+                                            return;
+                                        }
+                                        setLeaveForm(prev => ({ ...prev, proofFile: f }));
+                                    }}
+                                    className="input-field"
+                                />
+                                {leaveForm.proofFile && (
+                                    <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                                        ✅ {leaveForm.proofFile.name} ({(leaveForm.proofFile.size / 1024).toFixed(1)} KB)
+                                    </p>
+                                )}
+                            </div>
+                            <button type="submit" disabled={globalLoading} className="w-full btn-primary py-2">
+                                {globalLoading ? 'Submitting…' : '📤 Submit Leave Request'}
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+        const renderHostel = () => {
+            const filteredRooms = hostelRooms;
+            const today = new Date().toLocaleString('en-US', { weekday: 'long' });
+            const todayMenu = (messMenu[messType] && messMenu[messType][today]) || { breakfast: '-', lunch: '-', dinner: '-' };
+            const getRoomTypeBadge = (roomType) => {
+                const rt = safeStr(roomType).toUpperCase();
+                if (rt.includes('SINGLE')) return 'room-single';
+                if (rt.includes('DOUBLE')) return 'room-double';
+                if (rt.includes('TRIPLE')) return 'room-triple';
+                return 'room-single';
+            };
+            const getRoomTypeLabel = (roomType) => {
+                const rt = safeStr(roomType).toUpperCase();
+                if (rt.includes('SINGLE')) return '1 Seater';
+                if (rt.includes('DOUBLE')) return '2 Seater';
+                if (rt.includes('TRIPLE')) return '3 Seater';
+                return safeStr(roomType);
+            };
+            return (
+                <div>
+                    <div className="welcome-gradient rounded-2xl p-6 text-white mb-6 shadow-lg">
+                        <div className="flex justify-between items-center flex-wrap gap-3">
+                            <div>
+                                <h2 className="text-2xl font-bold welcome-text">🏠 Hostel Management</h2>
+                                <p className="welcome-sub text-sm">Rooms • Mess • Rules • Complaints</p>
+                            </div>
+                            <span className="bg-white/20 px-3 py-1 rounded-full text-xs">{hostelBookings.length} allocation{hostelBookings.length !== 1 ? 's' : ''}</span>
+                        </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2 mb-6">
+                        {[ { id: 'rooms', label: '🛏️ Rooms & Booking' }, { id: 'myBookings', label: '📋 My Allocation' }, { id: 'mess', label: '🍽️ Mess Menu' }, { id: 'rules', label: '📜 Hostel Rules' }, { id: 'complaints', label: '🔧 Complaints' } ].map(tab => (
+                            <button key={tab.id} className={`hostel-tab ${hostelTab === tab.id ? 'active' : ''}`} onClick={() => setHostelTab(tab.id)}>{tab.label}</button>
+                        ))}
+                    </div>
+                    {hostelTab === 'rooms' && (
+                        <div>
+                            <div className="card-modern mb-6">
+                                <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-3">💰 Room Pricing</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-l-4 border-blue-500"> <p className="text-sm font-semibold text-blue-700 dark:text-blue-400">🛏️ Single Seater (1 person)</p> <p className="rent-display mt-1">₹10,000<span className="text-sm text-gray-500">/month</span></p> </div>
+                                    <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border-l-4 border-green-500"> <p className="text-sm font-semibold text-green-700 dark:text-green-400">🛏️ Double Seater (2 persons)</p> <p className="rent-display mt-1">₹20,000<span className="text-sm text-gray-500">/month</span></p> </div>
+                                    <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border-l-4 border-yellow-500"> <p className="text-sm font-semibold text-yellow-700 dark:text-yellow-400">🛏️ Triple Seater (3 persons)</p> <p className="rent-display mt-1">₹30,000<span className="text-sm text-gray-500">/month</span></p> </div>
+                                </div>
+                            </div>
+                            {hostels.length > 0 && (
+                                <div className="card-modern mb-6">
+                                    <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-3">🏢 Hostels ({hostels.length})</h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                        {hostels.map(h => (
+                                            <div key={h.id} className={`p-4 rounded-lg border-l-4 ${h.gender === 'FEMALE' ? 'border-pink-500 bg-pink-50 dark:bg-pink-900/20' : 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'}`}>
+                                                <div className="flex justify-between items-start">
+                                                    <h4 className="font-bold text-gray-800 dark:text-white">{safeStr(h.name)}</h4>
+                                                    <span className={h.gender === 'FEMALE' ? 'gender-female' : 'gender-male'}>{h.gender === 'FEMALE' ? '👩 Girls' : '👨 Boys'}</span>
+                                                </div>
+                                                <p className="text-xs text-gray-600 dark:text-gray-400 mt-1">{safeStr(h.block)} • {safeStr(h.totalFloors)} floors</p>
+                                                {h.wardenName && ( <div className="mt-2 p-2 bg-white/50 dark:bg-black/20 rounded"> <p className="text-xs text-gray-600 dark:text-gray-400">👨‍🏫 {safeStr(h.wardenName)}</p> <p className="text-xs text-gray-500 dark:text-gray-400">📞 {safeStr(h.wardenPhone)}</p> </div> )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+                            <div className="card-modern">
+                                <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-3">🛏️ Rooms ({filteredRooms.length})</h3>
+                                {filteredRooms.length === 0 ? ( <div className="empty-state"><span className="icon">🛏️</span>No rooms available</div> ) : (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                        {filteredRooms.map(room => (
+                                            <div key={room.id} className="hostel-card p-4 rounded-lg border bg-white dark:bg-gray-800">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <div>
+                                                        <h4 className="font-bold text-lg text-gray-800 dark:text-white">{safeStr(room.roomNumber)}</h4>
+                                                        <p className="text-xs text-gray-500 dark:text-gray-400">{safeStr(room.hostelName)} • {safeStr(room.block)}</p>
+                                                    </div>
+                                                    <span className={room.gender === 'FEMALE' ? 'gender-female' : 'gender-male'}>{room.gender === 'FEMALE' ? '👩' : '👨'}</span>
+                                                </div>
+                                                <div className="flex flex-wrap gap-2 mb-2">
+                                                    <span className={`room-type-badge ${getRoomTypeBadge(room.roomType)}`}>🛏️ {getRoomTypeLabel(room.roomType)}</span>
+                                                    <span className={(room.hasAc || room.ac) ? 'ac-badge' : 'non-ac-badge'}>{(room.hasAc || room.ac) ? '❄️ AC' : '🌬️ Non-AC'}</span>
+                                                </div>
+                                                <p className="rent-display">₹{(room.rentPerMonth || room.rent || 0).toLocaleString()}<span className="text-xs text-gray-500 font-normal">/month</span></p>
+                                                <button onClick={() => { setSelectedHostelRoom(room); setShowHostelBookingModal(true); }} className="btn-success w-full mt-3 py-2 text-sm">🎫 Request Room</button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                    {hostelTab === 'myBookings' && (
+                        <div className="card-modern">
+                            <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-3">📋 My Hostel Allocation</h3>
+                            {hostelBookings.length === 0 ? ( <div className="empty-state"><span className="icon">🏠</span>No active allocation</div> ) : (
+                                <div className="space-y-3">
+                                    {hostelBookings.map(booking => (
+                                        <div key={booking.id} className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border-l-4 border-green-500">
+                                            <h4 className="font-bold text-gray-800 dark:text-white">Room {safeStr(booking.roomNumber)} • {safeStr(booking.hostelName, 'Hostel')}</h4>
+                                            <p className="text-sm text-gray-600 dark:text-gray-400">Allocated: {safeStr(booking.allocatedDate || booking.createdAt)}</p>
+                                            <span className="badge badge-resolved mt-2 inline-block">✅ {safeStr(booking.status, 'ACTIVE')}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    {hostelTab === 'mess' && (
+                        <div>
+                            <div className="card-modern mb-4">
+                                <div className="flex justify-between items-center flex-wrap gap-3">
+                                    <h3 className="text-lg font-bold text-gray-800 dark:text-white">🍽️ Mess Menu</h3>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => setMessType('veg')} className={`px-4 py-2 rounded-lg font-semibold text-sm ${messType === 'veg' ? 'bg-green-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>🟢 Veg</button>
+                                        <button onClick={() => setMessType('nonVeg')} className={`px-4 py-2 rounded-lg font-semibold text-sm ${messType === 'nonVeg' ? 'bg-red-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'}`}>🔴 Non-Veg</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="card-modern mb-4">
+                                <h4 className="font-bold text-gray-800 dark:text-white mb-3">📅 Today ({today})</h4>
+                                <div className="space-y-2">
+                                    <div className="mess-menu-row"><span className="font-medium text-gray-700 dark:text-gray-300">🌅 Breakfast</span><span className="text-sm text-gray-600 dark:text-gray-400 text-right ml-4">{todayMenu.breakfast}</span></div>
+                                    <div className="mess-menu-row"><span className="font-medium text-gray-700 dark:text-gray-300">☀️ Lunch</span><span className="text-sm text-gray-600 dark:text-gray-400 text-right ml-4">{todayMenu.lunch}</span></div>
+                                    <div className="mess-menu-row"><span className="font-medium text-gray-700 dark:text-gray-300">🌙 Dinner</span><span className="text-sm text-gray-600 dark:text-gray-400 text-right ml-4">{todayMenu.dinner}</span></div>
+                                </div>
+                            </div>
+                            <button onClick={() => setShowFullMessModal(true)} className="btn-primary w-full py-2">📅 View Full Week Menu</button>
+                        </div>
+                    )}
+                    {hostelTab === 'rules' && (
+                        <div className="card-modern">
+                            <h3 className="text-lg font-bold text-gray-800 dark:text-white mb-4">📜 Hostel Rules</h3>
+                            {hostelRules.map(rule => (
+                                <div key={rule.id} className="rule-item">
+                                    <div className="flex justify-between items-start">
+                                        <p className="text-gray-800 dark:text-white text-sm font-medium">{rule.id}. {safeStr(rule.rule || rule.ruleText)}</p>
+                                        <span className={`badge ${rule.priority === 1 ? 'badge-rejected' : rule.priority === 2 ? 'badge-pending' : 'badge-inprogress'} ml-2`}>{rule.priority === 1 ? 'Strict' : rule.priority === 2 ? 'Important' : 'General'}</span>
+                                    </div>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Category: {safeStr(rule.category)}</p>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                    {hostelTab === 'complaints' && (
+                        <div>
+                            <div className="card-modern mb-4">
+                                <div className="flex justify-between items-center flex-wrap gap-3">
+                                    <h3 className="text-lg font-bold text-gray-800 dark:text-white">🔧 Maintenance Requests</h3>
+                                    <button onClick={() => setShowHostelComplaintModal(true)} className="btn-warning text-sm py-1 px-3">+ Raise Request</button>
+                                </div>
+                            </div>
+                            {hostelComplaints.length === 0 ? ( <div className="card-modern empty-state"><span className="icon">🔧</span>No maintenance requests</div> ) : (
+                                <div className="space-y-3">
+                                    {hostelComplaints.map(c => (
+                                        <div key={c.id} className={`card-modern border-l-4 ${c.priority === 'HIGH' ? 'border-red-500' : c.priority === 'MEDIUM' ? 'border-yellow-500' : 'border-blue-500'}`}>
+                                            <h4 className="font-bold text-gray-800 dark:text-white">{safeStr(c.title)}</h4>
+                                            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{safeStr(c.description)}</p>
+                                            <div className="flex flex-wrap gap-2 mt-2 text-xs">
+                                                <span className="bg-gray-100 dark:bg-gray-700 px-2 py-0.5 rounded">{safeStr(c.category)}</span>
+                                                <span className={`badge ${c.status === 'PENDING' ? 'badge-pending' : c.status === 'IN_PROGRESS' ? 'badge-inprogress' : 'badge-resolved'}`}>{safeStr(c.status)}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    {showHostelBookingModal && selectedHostelRoom && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay">
+                            <div className="modal-content max-w-2xl">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h2 className="text-xl font-bold text-gray-800 dark:text-white">🎫 Request Room</h2>
+                                    <button onClick={() => { setShowHostelBookingModal(false); setSelectedHostelRoom(null); }} className="text-gray-500 text-2xl">×</button>
+                                </div>
+                                <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                                    <h3 className="font-bold text-gray-800 dark:text-white">Room {safeStr(selectedHostelRoom.roomNumber)} • {safeStr(selectedHostelRoom.hostelName)}</h3>
+                                    <p className="text-sm text-gray-600 dark:text-gray-300">{getRoomTypeLabel(selectedHostelRoom.roomType)} • {(selectedHostelRoom.hasAc || selectedHostelRoom.ac) ? '❄️ AC' : '🌬️ Non-AC'}</p>
+                                    <p className="rent-display mt-2">₹{(selectedHostelRoom.rentPerMonth || selectedHostelRoom.rent || 0).toLocaleString()}/month</p>
+                                </div>
+                                <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg mb-4">
+                                    <p className="text-sm text-blue-700 dark:text-blue-300">ℹ️ Room allocation is done by the hostel warden. Your request will be reviewed shortly.</p>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button onClick={() => { showMessage('✅ Room request submitted!', 'success'); setShowHostelBookingModal(false); setSelectedHostelRoom(null); }} className="btn-success flex-1 py-2">✅ Submit Request</button>
+                                    <button type="button" onClick={() => { setShowHostelBookingModal(false); setSelectedHostelRoom(null); }} className="btn-danger py-2 px-4">Cancel</button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    {showHostelComplaintModal && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay">
+                            <div className="modal-content max-w-2xl">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h2 className="text-xl font-bold text-gray-800 dark:text-white">🔧 Raise Maintenance Request</h2>
+                                    <button onClick={() => setShowHostelComplaintModal(false)} className="text-gray-500 text-2xl">×</button>
+                                </div>
+                                <form onSubmit={handleCreateHostelComplaint}>
+                                    <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Title *</label><input type="text" value={hostelComplaintForm.title} onChange={(e) => setHostelComplaintForm({...hostelComplaintForm, title: e.target.value})} className="input-field" required /></div>
+                                    <div className="mb-3"><label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Description *</label><textarea value={hostelComplaintForm.description} onChange={(e) => setHostelComplaintForm({...hostelComplaintForm, description: e.target.value})} rows="3" className="input-field" required /></div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="mb-3"> <label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Category</label> <select value={hostelComplaintForm.category} onChange={(e) => setHostelComplaintForm({...hostelComplaintForm, category: e.target.value})} className="input-field"> <option value="Plumbing">🚰 Plumbing</option><option value="Electrical">💡 Electrical</option> <option value="Furniture">🪑 Furniture</option><option value="AC">❄️ AC</option> <option value="WiFi">📶 WiFi</option><option value="Cleaning">🧹 Cleaning</option> <option value="Other">📌 Other</option> </select> </div>
+                                        <div className="mb-3"> <label className="block text-gray-700 dark:text-gray-300 font-bold mb-1">Priority</label> <select value={hostelComplaintForm.priority} onChange={(e) => setHostelComplaintForm({...hostelComplaintForm, priority: e.target.value})} className="input-field"> <option value="HIGH">🔴 High</option><option value="MEDIUM">🟡 Medium</option><option value="LOW">🟢 Low</option> </select> </div>
+                                    </div>
+                                    <button type="submit" disabled={globalLoading} className="w-full btn-warning py-2">{globalLoading ? 'Submitting...' : '🔧 Submit'}</button>
+                                </form>
+                            </div>
+                        </div>
+                    )}
+                    {showFullMessModal && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 modal-overlay">
+                            <div className="modal-content max-w-3xl">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h2 className="text-xl font-bold text-gray-800 dark:text-white">🍽️ Weekly Mess - {messType === 'veg' ? '🟢 Veg' : '🔴 Non-Veg'}</h2>
+                                    <button onClick={() => setShowFullMessModal(false)} className="text-gray-500 text-2xl">×</button>
+                                </div>
+                                <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+                                    {['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].map(day => {
+                                        const menu = (messMenu[messType] && messMenu[messType][day]) || { breakfast: '-', lunch: '-', dinner: '-' };
+                                        return (
+                                            <div key={day} className={`p-3 rounded-lg ${day === today ? 'bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500' : 'bg-gray-50 dark:bg-gray-700'}`}>
+                                                <h4 className="font-bold text-gray-800 dark:text-white">{day} {day === today && <span className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded-full ml-2">Today</span>}</h4>
+                                                <div className="space-y-1 text-sm mt-2">
+                                                    <div className="mess-menu-row"><span className="font-medium text-gray-700 dark:text-gray-300">🌅</span><span className="text-sm text-gray-600 dark:text-gray-400 text-right ml-4">{menu.breakfast}</span></div>
+                                                    <div className="mess-menu-row"><span className="font-medium text-gray-700 dark:text-gray-300">☀️</span><span className="text-sm text-gray-600 dark:text-gray-400 text-right ml-4">{menu.lunch}</span></div>
+                                                    <div className="mess-menu-row"><span className="font-medium text-gray-700 dark:text-gray-300">🌙</span><span className="text-sm text-gray-600 dark:text-gray-400 text-right ml-4">{menu.dinner}</span></div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                <button onClick={() => setShowFullMessModal(false)} className="btn-primary w-full py-2 mt-4">Close</button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        };
+
+        const renderContent = () => {
+            switch (activeTab) {
+                case 'dashboard': return renderDashboard();
+                case 'hostel': return renderHostel();
+                case 'courseMaterials': return renderCourseMaterials();
+                case 'attendance': return renderAttendance();
+                case 'timetable': return renderTimetable();
+                case 'noticeboard': return renderNoticeBoard();
+                case 'lostfound': return renderLostFound();
+                case 'assignments': return renderAssignments();
+                case 'library': return renderLibrary();
+                case 'complaints': return renderComplaints();
+                case 'events': return renderEvents();
+                case 'transport': return renderTransport();
+                case 'feedback': return renderFeedback();
+                case 'cafeteria': return renderCafeteria();
+                case 'placement': return renderPlacement();
+                case 'chatbot': window.location.href = 'chatbot.html'; return null;
+                case 'campus': window.location.href = 'campus-view.html'; return null;
+                case 'leaves': return renderLeaves();
+                default: return renderDashboard();
+            }
+        };
+
+        const menuItems = [
+            { id: 'dashboard', icon: '📊', label: 'Dashboard' },
+            { id: 'hostel', icon: '🏠', label: 'Hostel Management' },
+            { id: 'courseMaterials', icon: '📚', label: 'Course Materials' },
+            { id: 'attendance', icon: '📈', label: 'Attendance' },
+            { id: 'timetable', icon: '📅', label: 'Timetable' },
+            { id: 'noticeboard', icon: '📋', label: 'Notice Board' },
+            { id: 'lostfound', icon: '🔍', label: 'Lost & Found' },
+            { id: 'assignments', icon: '📝', label: 'Assignments' },
+            { id: 'library', icon: '📖', label: 'Library' },
+            { id: 'complaints', icon: '📋', label: 'My Complaints' },
+            { id: 'events', icon: '📅', label: 'Events' },
+            { id: 'transport', icon: '🚌', label: 'Transport' },
+            { id: 'feedback', icon: '📝', label: 'Feedback' },
+            { id: 'cafeteria', icon: '🍽️', label: 'Cafeteria' },
+            { id: 'placement', icon: '💼', label: 'Placement' },
+            { id: 'chatbot', icon: '🤖', label: 'Chat Assistant' },
+            { id: 'campus', icon: '🌍', label: 'Campus View' },
+            { id: 'leaves', icon: '📋', label: 'My Leaves' }
+        ];
+
+        return (
+            <div className={`${isDarkMode ? 'dark' : ''}`}>
+                {globalLoading && <div className="loading-overlay"><div className="loading-spinner"></div></div>}
+                <button className="sidebar-toggle-mobile" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>☰</button>
+                <div className={`sidebar-overlay ${isSidebarOpen ? 'active' : ''}`} onClick={() => setIsSidebarOpen(false)} />
+                <div className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''} ${isSidebarOpen ? 'open' : ''}`}>
+                    <div className="sidebar-header">
+                        <span className="logo-text">🎓 Student</span>
+                        <button className="sidebar-toggle-btn" onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}>{isSidebarCollapsed ? '☰' : '◀'}</button>
+                    </div>
+                    <div className="sidebar-menu">
+                        <div className="sidebar-menu-title">Main</div>
+                        {menuItems.map(item => (
+                            <button key={item.id} className={`sidebar-item ${activeTab === item.id ? 'active' : ''}`} onClick={() => { setActiveTab(item.id); setIsSidebarOpen(false); }}>
+                                <span className="icon">{item.icon}</span>
+                                <span className="sidebar-label">{item.label}</span>
+                            </button>
+                        ))}
+                    </div>
+                    <div className="sidebar-footer">
+                        <div className="sidebar-user">
+                            <div className="sidebar-user-avatar">{safeStr(name).charAt(0).toUpperCase()}</div>
+                            <div className="sidebar-user-info">
+                                <div className="sidebar-user-name">{safeStr(name)}</div>
+                                <div className="sidebar-user-role">Student</div>
+                            </div>
+                        </div>
+                        <button className="sidebar-logout" onClick={handleLogout}><span className="icon">🚪</span><span className="sidebar-logout-text">Logout</span></button>
+                        <button className="sidebar-logout mt-1" onClick={toggleTheme}><span className="icon">{isDarkMode ? '☀️' : '🌙'}</span><span className="sidebar-logout-text">{isDarkMode ? 'Light' : 'Dark'}</span></button>
+                    </div>
+                </div>
+                <div className="main-content">
+                {message.text && (
+                    <div
+                        className={`fixed bottom-6 right-6 z-[9999] px-4 py-3 rounded-lg shadow-2xl text-white font-semibold pointer-events-none ${message.type === 'error' ? 'bg-red-500' : 'bg-green-500'}`}
+                    >
+                        {message.text}
+                    </div>
+                    )}
+                    {renderContent()}
+                </div>
+            </div>
+        );
+    }
+
+    ReactDOM.render(<StudentDashboard />, document.getElementById('root'));
+</script>
 </body>
 </html>

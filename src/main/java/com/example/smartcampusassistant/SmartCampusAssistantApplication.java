@@ -6,8 +6,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 public class SmartCampusAssistantApplication {
 
-	public static void main(String[] args) {
-		SpringApplication.run(SmartCampusAssistantApplication.class, args);
-	}
+    public static void main(String[] args) {
+        SpringApplication.run(SmartCampusAssistantApplication.class, args);
+    }
 
 }

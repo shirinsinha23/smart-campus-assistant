@@ -1,10 +1,532 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>$Title$</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>🤖 Smart Campus Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; background: #f1f5f9; }
+        .dark body { background: #0b1120; }
+
+        .chat-container {
+            max-width: 800px;
+            margin: 0 auto;
+            height: calc(100vh - 120px);
+            display: flex;
+            flex-direction: column;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .dark .chat-container {
+            background: #182235;
+            border-color: #253450;
+        }
+
+        .chat-header {
+            padding: 16px 24px;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: white;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .chat-messages::-webkit-scrollbar {
+            width: 6px;
+        }
+        .chat-messages::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 10px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 16px;
+            animation: fadeIn 0.3s ease-in;
+        }
+        .message-user {
+            align-self: flex-end;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+        .message-bot {
+            align-self: flex-start;
+            background: #f1f5f9;
+            color: #1f2937;
+            border-bottom-left-radius: 4px;
+        }
+        .dark .message-bot {
+            background: #1e293b;
+            color: #e8edf5;
+        }
+
+        .message-time {
+            font-size: 0.65rem;
+            opacity: 0.7;
+            margin-top: 4px;
+        }
+        .message-user .message-time { color: rgba(255,255,255,0.7); }
+        .message-bot .message-time { color: #94a3b8; }
+        .dark .message-bot .message-time { color: #6b7a93; }
+
+        .chat-input-area {
+            padding: 16px 24px;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            gap: 12px;
+            background: white;
+        }
+        .dark .chat-input-area {
+            background: #182235;
+            border-top-color: #253450;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            outline: none;
+            transition: all 0.3s;
+            background: #f8fafc;
+        }
+        .chat-input:focus {
+            border-color: #8b5cf6;
+            box-shadow: 0 0 0 3px rgba(139,92,246,0.2);
+        }
+        .dark .chat-input {
+            background: #1e293b;
+            border-color: #334155;
+            color: #e8edf5;
+        }
+        .dark .chat-input:focus {
+            border-color: #8b5cf6;
+            box-shadow: 0 0 0 3px rgba(139,92,246,0.2);
+        }
+
+        .send-btn {
+            padding: 12px 24px;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        .send-btn:hover {
+            transform: scale(1.02);
+            box-shadow: 0 4px 15px rgba(139,92,246,0.4);
+        }
+        .send-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .typing-indicator {
+            display: flex;
+            gap: 4px;
+            padding: 8px 16px;
+            align-self: flex-start;
+            background: #f1f5f9;
+            border-radius: 16px;
+            border-bottom-left-radius: 4px;
+        }
+        .dark .typing-indicator {
+            background: #1e293b;
+        }
+        .typing-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #94a3b8;
+            animation: typing 1.4s infinite both;
+        }
+        .typing-dot:nth-child(1) { animation-delay: 0s; }
+        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes typing {
+            0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+            30% { transform: translateY(-6px); opacity: 1; }
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .quick-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 8px 24px;
+            background: #f8fafc;
+            border-top: 1px solid #e5e7eb;
+        }
+        .dark .quick-actions {
+            background: #1e293b;
+            border-top-color: #253450;
+        }
+        .quick-btn {
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1px solid #e5e7eb;
+            background: white;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: all 0.3s;
+            color: #374151;
+        }
+        .dark .quick-btn {
+            background: #182235;
+            border-color: #334155;
+            color: #e8edf5;
+        }
+        .quick-btn:hover {
+            background: #8b5cf6;
+            color: white;
+            border-color: #8b5cf6;
+            transform: scale(1.05);
+        }
+    </style>
 </head>
 <body>
-$END$
+<div id="root"></div>
+
+<script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    const API_BASE_URL = '/api';
+
+    // Check if user is logged in
+    const token = localStorage.getItem('token');
+    if (!token) {
+        window.location.href = 'index.html';
+    }
+
+    const api = axios.create({
+        baseURL: API_BASE_URL,
+        headers: { 'Content-Type': 'application/json' }
+    });
+
+    api.interceptors.request.use(config => {
+        const t = localStorage.getItem('token');
+        if (t) {
+            config.headers.Authorization = `Bearer ${t}`;
+        }
+        return config;
+    });
+
+    const userName = localStorage.getItem('name') || 'User';
+    const userRole = localStorage.getItem('role') || 'STUDENT';
+
+    function ChatbotPage() {
+        const [messages, setMessages] = useState([]);
+        const [input, setInput] = useState('');
+        const [loading, setLoading] = useState(false);
+        const [isDarkMode, setIsDarkMode] = useState(() => {
+            const savedTheme = localStorage.getItem('theme');
+            return savedTheme === 'dark';
+        });
+        const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+        const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+        const messagesEndRef = useRef(null);
+
+        // Predefined questions and responses
+        const botResponses = {
+            'attendance': {
+                keywords: ['attendance', 'absent', 'present', 'classes', 'lectures'],
+                response: '📊 You can check your attendance by clicking on the "Attendance" tab in the sidebar. You can also view subject-wise attendance statistics.'
+            },
+            'timetable': {
+                keywords: ['timetable', 'schedule', 'class', 'time table', 'subjects'],
+                response: '📅 Your timetable is available under the "Timetable" tab. It shows all your classes with timings, subjects, faculty, and room numbers.'
+            },
+            'library': {
+                keywords: ['library', 'book', 'reserve', 'borrow', 'books'],
+                response: '📚 The Library section allows you to search for books, reserve them, and view your borrowing history. Check it out in the sidebar!'
+            },
+            'complaint': {
+                keywords: ['complaint', 'issue', 'problem', 'report', 'grievance'],
+                response: '📋 You can raise a complaint under the "My Complaints" tab. Select the category, describe your issue, and track the status.'
+            },
+            'cafeteria': {
+                keywords: ['cafeteria', 'food', 'meal', 'restaurant', 'order', 'menu'],
+                response: '🍽️ The Cafeteria section lets you browse menus from 8 restaurants, search for items, and filter by cuisine type. Click on "Cafeteria" in the sidebar!'
+            },
+            'hostel': {
+                keywords: ['hostel', 'room', 'accommodation', 'mess', 'warden'],
+                response: '🏠 The Hostel Management section shows your room details, warden information, mess menu, and allows you to raise maintenance requests.'
+            },
+            'feedback': {
+                keywords: ['feedback', 'suggest', 'review', 'rate', 'opinion'],
+                response: '📝 You can submit feedback about faculty, courses, infrastructure, cafeteria, and hostel. Go to the "Feedback" tab to share your thoughts!'
+            },
+            'placement': {
+                keywords: ['placement', 'drive', 'company', 'job', 'interview', 'recruitment'],
+                response: '💼 The Placement section shows all upcoming drives, allows you to apply, and track your applications. Check out the "Placement" tab!'
+            },
+            'lost': {
+                keywords: ['lost', 'found', 'missing', 'claim', 'item'],
+                response: '🔍 The Lost & Found section helps you report lost items or claim found items. Go to the "Lost & Found" tab in the sidebar.'
+            },
+            'transport': {
+                keywords: ['bus', 'transport', 'seat', 'booking', 'route', 'shuttle'],
+                response: '🚌 The Transport section allows you to view bus routes, check schedules, and book seats. Look for the "Transport" tab in the sidebar.'
+            },
+            'default': {
+                keywords: [],
+                response: "🤖 I'm your Smart Campus Assistant! I can help you with:\n\n• 📊 Attendance tracking\n• 📅 Timetable viewing\n• 📚 Library services\n• 📋 Raising complaints\n• 🍽️ Cafeteria information\n• 🏠 Hostel management\n• 📝 Submitting feedback\n• 💼 Placement drives\n• 🔍 Lost & Found\n• 🚌 Transport booking\n\nWhat would you like to know more about?"
+            }
+        };
+
+        const quickActions = [
+            { label: '📊 Attendance', value: 'How do I check my attendance?' },
+            { label: '📅 Timetable', value: 'Where can I find my timetable?' },
+            { label: '📚 Library', value: 'How do I reserve a book?' },
+            { label: '📋 Complaints', value: 'How do I raise a complaint?' },
+            { label: '🍽️ Cafeteria', value: 'What is on the cafeteria menu?' },
+            { label: '🏠 Hostel', value: 'How do I request maintenance?' },
+            { label: '📝 Feedback', value: 'How do I submit feedback?' },
+            { label: '💼 Placement', value: 'How do I apply for drives?' }
+        ];
+
+        useEffect(() => {
+            // Welcome message
+            setMessages([
+                {
+                    id: Date.now(),
+                    text: `👋 Hello ${userName}! I'm your Smart Campus Assistant. How can I help you today?`,
+                    sender: 'bot',
+                    time: new Date().toLocaleTimeString()
+                }
+            ]);
+        }, []);
+
+        useEffect(() => {
+            scrollToBottom();
+        }, [messages]);
+
+        const scrollToBottom = () => {
+            messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        };
+
+        const getBotResponse = (userInput) => {
+            const inputLower = userInput.toLowerCase().trim();
+
+            // Check for specific keywords
+            for (const [key, data] of Object.entries(botResponses)) {
+                if (data.keywords.some(kw => inputLower.includes(kw))) {
+                    return data.response;
+                }
+            }
+
+            // Check for greetings
+            if (inputLower.match(/^(hi|hello|hey|good morning|good afternoon|good evening|namaste|hola)/)) {
+                return `👋 Hello! How can I assist you with Smart Campus today? I can help with attendance, timetable, library, complaints, cafeteria, hostel, feedback, placement, lost & found, and transport.`;
+            }
+
+            // Check for thank you
+            if (inputLower.match(/thank|thanks|thx|ty/)) {
+                return '😊 You\'re welcome! Is there anything else I can help you with?';
+            }
+
+            return botResponses.default.response;
+        };
+
+        const handleSendMessage = async () => {
+            if (!input.trim() || loading) return;
+
+            const userMessage = {
+                id: Date.now(),
+                text: input.trim(),
+                sender: 'user',
+                time: new Date().toLocaleTimeString()
+            };
+
+            setMessages(prev => [...prev, userMessage]);
+            setInput('');
+            setLoading(true);
+
+            // Use local responses directly — no backend call needed
+            const botResponse = getBotResponse(userMessage.text);
+            const botMessage = {
+                id: Date.now() + 1,
+                text: botResponse,
+                sender: 'bot',
+                time: new Date().toLocaleTimeString()
+            };
+
+            // Simulate typing delay for a natural feel
+            setTimeout(() => {
+                setMessages(prev => [...prev, botMessage]);
+                setLoading(false);
+            }, 500 + Math.random() * 500);
+        };
+
+        const handleKeyPress = (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                handleSendMessage();
+            }
+        };
+
+        const handleQuickAction = (text) => {
+            setInput(text);
+            // Auto-send after setting
+            setTimeout(() => {
+                handleSendMessage();
+            }, 100);
+        };
+
+        const handleLogout = () => {
+            localStorage.clear();
+            window.location.href = 'index.html';
+        };
+
+        const toggleTheme = () => {
+            const newMode = !isDarkMode;
+            setIsDarkMode(newMode);
+            localStorage.setItem('theme', newMode ? 'dark' : 'light');
+        };
+
+        useEffect(() => {
+            if (isDarkMode) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        }, [isDarkMode]);
+
+        return (
+            <div className={`${isDarkMode ? 'dark' : ''}`}>
+                <button className="sidebar-toggle-mobile" onClick={() => setIsSidebarOpen(!isSidebarOpen)} style={{display: 'block', position: 'fixed', top: '12px', left: '12px', zIndex: '1001', background: '#0f172a', color: 'white', border: 'none', padding: '8px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '1.2rem', boxShadow: '0 4px 12px rgba(0,0,0,0.3)'}}>
+                    ☰
+                </button>
+                <div className={`sidebar-overlay ${isSidebarOpen ? 'active' : ''}`} style={{display: isSidebarOpen ? 'block' : 'none', position: 'fixed', inset: '0', background: 'rgba(0,0,0,0.5)', zIndex: '999'}} onClick={() => setIsSidebarOpen(false)} />
+
+                <div className={`sidebar ${isSidebarCollapsed ? 'collapsed' : ''} ${isSidebarOpen ? 'open' : ''}`} style={{position: 'fixed', left: '0', top: '0', height: '100vh', width: isSidebarCollapsed ? '72px' : '260px', background: '#0f172a', color: '#e2e8f0', zIndex: '1000', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', overflowY: 'auto', overflowX: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '4px 0 20px rgba(0,0,0,0.3)'}}>
+                    <div className="sidebar-header" style={{padding: '18px 20px', borderBottom: '1px solid #1e293b', display: 'flex', alignItems: 'center', justifyContent: 'space-between', minHeight: '68px'}}>
+                        <span className="logo-text" style={{fontSize: '1.2rem', fontWeight: '700', background: 'linear-gradient(135deg, #60a5fa, #a78bfa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', whiteSpace: 'nowrap'}}>🤖 Assistant</span>
+                        <button className="sidebar-toggle-btn" onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)} style={{background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer', padding: '4px 8px', borderRadius: '6px', transition: '0.2s'}}>
+                            {isSidebarCollapsed ? '☰' : '◀'}
+                        </button>
+                    </div>
+
+                    <div className="sidebar-menu" style={{flex: '1', padding: '12px 10px'}}>
+                        <div className="sidebar-menu-title" style={{fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b', padding: '12px 12px 6px', fontWeight: '600'}}>Main</div>
+                        <button className="sidebar-item active" style={{display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', borderRadius: '10px', cursor: 'pointer', transition: 'all 0.2s ease', color: 'white', fontSize: '0.875rem', fontWeight: '500', width: '100%', border: 'none', background: '#8b5cf6', textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden'}}>
+                            <span className="icon" style={{fontSize: '1.2rem', minWidth: '28px', textAlign: 'center'}}>🤖</span>
+                            <span className="sidebar-label">Chat Assistant</span>
+                        </button>
+                        <div className="sidebar-menu-title mt-4" style={{fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.08em', color: '#64748b', padding: '12px 12px 6px', fontWeight: '600'}}>Other</div>
+                        <a href={userRole === 'STUDENT' ? 'student-dashboard.html' : userRole === 'FACULTY' ? 'faculty-dashboard.html' : 'admin-dashboard.html'} className="sidebar-item" style={{display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', borderRadius: '10px', cursor: 'pointer', transition: 'all 0.2s ease', color: '#94a3b8', fontSize: '0.875rem', fontWeight: '500', width: '100%', border: 'none', background: 'transparent', textAlign: 'left', whiteSpace: 'nowrap', overflow: 'hidden', textDecoration: 'none'}}>
+                            <span className="icon" style={{fontSize: '1.2rem', minWidth: '28px', textAlign: 'center'}}>🏠</span>
+                            <span className="sidebar-label">Dashboard</span>
+                        </a>
+                    </div>
+
+                    <div className="sidebar-footer" style={{padding: '16px 14px', borderTop: '1px solid #1e293b', marginTop: 'auto'}}>
+                        <div className="sidebar-user" style={{display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 10px', borderRadius: '10px', background: 'rgba(255,255,255,0.04)'}}>
+                            <div className="sidebar-user-avatar" style={{width: '36px', height: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, #8b5cf6, #7c3aed)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '700', fontSize: '0.9rem', color: 'white', flexShrink: '0'}}>{userName.charAt(0).toUpperCase()}</div>
+                            <div className="sidebar-user-info">
+                                <div className="sidebar-user-name" style={{fontSize: '0.875rem', fontWeight: '600', color: '#f1f5f9'}}>{userName}</div>
+                                <div className="sidebar-user-role" style={{fontSize: '0.65rem', color: '#94a3b8', textTransform: 'uppercase'}}>{userRole}</div>
+                            </div>
+                        </div>
+                        <button className="sidebar-logout" onClick={handleLogout} style={{display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 10px', borderRadius: '10px', cursor: 'pointer', transition: 'all 0.2s ease', color: '#94a3b8', border: 'none', background: 'transparent', width: '100%', fontSize: '0.875rem', marginTop: '6px'}}>
+                            <span className="icon" style={{fontSize: '1.2rem', minWidth: '28px', textAlign: 'center'}}>🚪</span>
+                            <span className="sidebar-logout-text">Logout</span>
+                        </button>
+                        <button className="sidebar-logout mt-1" onClick={toggleTheme} style={{display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 10px', borderRadius: '10px', cursor: 'pointer', transition: 'all 0.2s ease', color: '#94a3b8', border: 'none', background: 'transparent', width: '100%', fontSize: '0.875rem', marginTop: '6px'}}>
+                            <span className="icon" style={{fontSize: '1.2rem', minWidth: '28px', textAlign: 'center'}}>{isDarkMode ? '☀️' : '🌙'}</span>
+                            <span className="sidebar-logout-text">{isDarkMode ? 'Light' : 'Dark'}</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div className="main-content" style={{marginLeft: isSidebarCollapsed ? '72px' : '260px', minHeight: '100vh', background: isDarkMode ? '#0b1120' : '#f1f5f9', padding: '24px', transition: 'margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1)'}}>
+                    <div className="chat-container">
+                        <div className="chat-header">
+                            <span style={{fontSize: '24px'}}>🤖</span>
+                            <div>
+                                <h2 style={{margin: 0, fontSize: '18px'}}>Smart Campus Assistant</h2>
+                                <p style={{margin: 0, fontSize: '12px', opacity: 0.8}}>Ask me anything about Smart Campus</p>
+                            </div>
+                            <span style={{marginLeft: 'auto', fontSize: '12px', opacity: 0.8}}>Online</span>
+                        </div>
+
+                        <div className="chat-messages" style={{flex: '1', overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '12px'}}>
+                            {messages.map((msg) => (
+                                <div key={msg.id} className={`message message-${msg.sender}`} style={{maxWidth: '80%', padding: '12px 16px', borderRadius: '16px', animation: 'fadeIn 0.3s ease-in', alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start', background: msg.sender === 'user' ? 'linear-gradient(135deg, #3b82f6, #8b5cf6)' : (isDarkMode ? '#1e293b' : '#f1f5f9'), color: msg.sender === 'user' ? 'white' : (isDarkMode ? '#e8edf5' : '#1f2937'), borderBottomRightRadius: msg.sender === 'user' ? '4px' : '16px', borderBottomLeftRadius: msg.sender === 'bot' ? '4px' : '16px'}}>
+                                    <div style={{whiteSpace: 'pre-wrap'}}>{msg.text}</div>
+                                    <div className="message-time" style={{fontSize: '0.65rem', opacity: 0.7, marginTop: '4px', color: msg.sender === 'user' ? 'rgba(255,255,255,0.7)' : (isDarkMode ? '#6b7a93' : '#94a3b8')}}>{msg.time}</div>
+                                </div>
+                            ))}
+                            {loading && (
+                                <div className="typing-indicator" style={{display: 'flex', gap: '4px', padding: '8px 16px', alignSelf: 'flex-start', background: isDarkMode ? '#1e293b' : '#f1f5f9', borderRadius: '16px', borderBottomLeftRadius: '4px'}}>
+                                    <div className="typing-dot" style={{width: '8px', height: '8px', borderRadius: '50%', background: '#94a3b8', animation: 'typing 1.4s infinite both', animationDelay: '0s'}}></div>
+                                    <div className="typing-dot" style={{width: '8px', height: '8px', borderRadius: '50%', background: '#94a3b8', animation: 'typing 1.4s infinite both', animationDelay: '0.2s'}}></div>
+                                    <div className="typing-dot" style={{width: '8px', height: '8px', borderRadius: '50%', background: '#94a3b8', animation: 'typing 1.4s infinite both', animationDelay: '0.4s'}}></div>
+                                </div>
+                            )}
+                            <div ref={messagesEndRef} />
+                        </div>
+
+                        <div className="quick-actions" style={{display: 'flex', flexWrap: 'wrap', gap: '8px', padding: '8px 24px', background: isDarkMode ? '#1e293b' : '#f8fafc', borderTop: '1px solid ' + (isDarkMode ? '#253450' : '#e5e7eb')}}>
+                            {quickActions.slice(0, 6).map((action, idx) => (
+                                <button key={idx} className="quick-btn" onClick={() => handleQuickAction(action.value)} style={{padding: '6px 14px', borderRadius: '20px', border: '1px solid ' + (isDarkMode ? '#334155' : '#e5e7eb'), background: isDarkMode ? '#182235' : 'white', cursor: 'pointer', fontSize: '0.8rem', transition: 'all 0.3s', color: isDarkMode ? '#e8edf5' : '#374151'}}>
+                                    {action.label}
+                                </button>
+                            ))}
+                        </div>
+
+                        <div className="chat-input-area" style={{padding: '16px 24px', borderTop: '1px solid ' + (isDarkMode ? '#253450' : '#e5e7eb'), display: 'flex', gap: '12px', background: isDarkMode ? '#182235' : 'white'}}>
+                            <input
+                                type="text"
+                                className="chat-input"
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                onKeyPress={handleKeyPress}
+                                placeholder="Type your question..."
+                                style={{flex: '1', padding: '12px 16px', border: '2px solid ' + (isDarkMode ? '#334155' : '#e5e7eb'), borderRadius: '12px', outline: 'none', transition: 'all 0.3s', background: isDarkMode ? '#1e293b' : '#f8fafc', color: isDarkMode ? '#e8edf5' : '#1f2937'}}
+                            />
+                            <button
+                                className="send-btn"
+                                onClick={handleSendMessage}
+                                disabled={loading || !input.trim()}
+                                style={{padding: '12px 24px', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)', color: 'white', border: 'none', borderRadius: '12px', cursor: 'pointer', fontWeight: '600', transition: 'all 0.3s', opacity: (loading || !input.trim()) ? '0.5' : '1'}}
+                            >
+                                {loading ? '⏳' : 'Send'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    ReactDOM.render(<ChatbotPage />, document.getElementById('root'));
+</script>
 </body>
 </html>

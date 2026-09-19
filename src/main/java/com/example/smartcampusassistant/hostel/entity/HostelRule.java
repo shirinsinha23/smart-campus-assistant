@@ -1,4 +1,49 @@
 package com.example.smartcampusassistant.hostel.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.time.LocalDateTime;
+
+@Entity
+@Table(name = "hostel_rules")
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class HostelRule {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false)
+    private String ruleText;
+
+    @Column(nullable = false)
+    private String category;
+
+    private Integer priority;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "hostel_id", nullable = false)
+    @JsonIgnore  // 👈 ADD THIS - Prevents infinite recursion
+    private Hostel hostel;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private Boolean isActive = true;
+
+    @CreationTimestamp
+    @Column(updatable = false)
+    private LocalDateTime createdAt;
+
+    @UpdateTimestamp
+    private LocalDateTime updatedAt;
 }
